@@ -1,2 +1,5 @@
 aws_es_id_pw.txt
 elasticsearch-8.15.3
+logstash-8.16.0
+keys.config
+__pycache__
