@@ -1,22 +1,22 @@
-# CSV 파일에서 진료과목 코드 매핑
+#CSV 파일에서 진료과목 코드 매핑
 def get_department_code(department_name):
     import pandas as pd
 
     df = pd.read_csv('./컬럼정보_코드.csv', encoding='cp949')
-    # '명칭' 열을 기준으로 진료과목 코드 찾기
+    #'명칭' 열을 기준으로 진료과목 코드 찾기
     filtered_row = df[df['명칭'] == department_name]
     if not filtered_row.empty:
-        return filtered_row['코드'].values[0]  # 첫 번째 일치 값 반환
+        return filtered_row['코드'].values[0] #첫 번째 일치 값 반환
     return None
 
-# MySQL에 병원 데이터 저장
+#병원 데이터 저장
 def save_to_mysql(data):
     import configparser
 
-    # ConfigParser 초기화
+    #ConfigParser 초기화
     config = configparser.ConfigParser()
 
-    # keys.config 파일 읽기
+    #keys.config 파일 읽기
     config.read('../keys.config')
 
     import pymysql
@@ -30,7 +30,7 @@ def save_to_mysql(data):
     cursor = connection.cursor(pymysql.cursors.DictCursor)
 
     
-    # 새 데이터 삽입
+    #새 데이터 삽입
     insert_query = """
         INSERT INTO hospital_data (addr, yadmNm, clCdNm, sidoCdNm, sgguCdNm, emdongNm, xPos, yPos, telno, hospUrl, dgsbjt)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -41,7 +41,7 @@ def save_to_mysql(data):
     cursor.close()
     connection.close()
 
-# API 호출 및 데이터 수집
+#API 호출 및 데이터 수집
 def fetch_and_store_data(department_name, servicekey, pageNo):
     from pprint import pprint #dict 가독성 좋게 출력
     import xmltodict
@@ -59,7 +59,7 @@ def fetch_and_store_data(department_name, servicekey, pageNo):
     }
     response = requests.get('http://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList', params=params)
     
-    # API 요청 결과 파싱
+    #API 요청 결과 파싱
     data_to_insert = []
     if response.status_code == 200:
         root = xmltodict.parse(response.content)  # XML을 JSON으로 변환
@@ -79,6 +79,6 @@ def fetch_and_store_data(department_name, servicekey, pageNo):
                 department_name
             ))
     pprint(data_to_insert)
-    # MySQL에 데이터 저장
+    #MySQL에 데이터 저장
     save_to_mysql(data_to_insert)
     print('저장 완료')

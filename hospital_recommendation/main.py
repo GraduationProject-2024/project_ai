@@ -1,16 +1,17 @@
 import pandas as pd
 import numpy as np
 import configparser
-from es_functions import query_elasticsearch, filtering, get_travel_time  #Elasticsearch 관련 모듈
-from recommendation import address_to_coords, embed_user_profile, embed_hospital_data, train_autoencoder, recommend_hospitals #추천시스템 모듈
+from utils.es_functions import query_elasticsearch, filtering  #Elasticsearch 관련 모듈
+from utils.recommendation import HospitalRecommender
+from utils.direction import get_travel_time
+from utils.geocode import address_to_coords
 import time
 
 if __name__ == "__main__":
     # ConfigParser 초기화
     config = configparser.ConfigParser()
-
     # keys.config 파일 읽기
-    config.read('../keys.config')
+    config.read('C:/Users/user/Desktop/24-2/졸업프로젝트/project_ai/keys.config')
 
     # 사용자 정보 입력(sample)(나중에 spring에서 받아오게끔 바꿔야 함)
     basic_info = {
@@ -29,7 +30,9 @@ if __name__ == "__main__":
         "allergy": "페니실린"
     }
 
-
+    # HospitalRecommender 인스턴스 생성
+    recommender = HospitalRecommender()
+    
     # 카카오 REST API 키
     api_key = config['API_KEYS']['kakao_api_key']
     coords = address_to_coords(basic_info['address'], api_key)
@@ -64,8 +67,8 @@ if __name__ == "__main__":
 
         # 열 정렬
         column_order = [
-            'id', 'clcdnm', 'addr', 'yadmnm', 'sidocdnm', 'sggucdnm', 'emdongnm',
-            'location', 'xpos', 'ypos', 'dgsbjt', 'telno', 'hospurl', '@timestamp'
+            'id', 'name', 'addr', 'department', 'distance_in_m', 'telephone',
+            'latitude', 'longitude', 'sort_score'
         ]
         # 열 정렬 및 누락된 열은 자동으로 뒤에 추가
         df = df[[col for col in column_order if col in df.columns] + [col for col in df.columns if col not in column_order]]
@@ -73,9 +76,11 @@ if __name__ == "__main__":
         error_occurred = False  # 오류 발생 여부 확인용 변수
         processed_count = 0  # 성공적으로 처리된 데이터 개수
         
+
+        sampled_df = df[:100]
         # 각 병원까지의 소요시간을 계산하여 데이터프레임에 추가
         travel_times = []
-        for _, row in df.iterrows():
+        for _, row in sampled_df.iterrows():
             try:
                 hospital_lat = row['latitude']
                 hospital_lon = row['longitude']
@@ -87,7 +92,7 @@ if __name__ == "__main__":
                         if travel_time_sec is not None:
                             travel_times.append(travel_time_sec)
                             processed_count += 1
-                            time.sleep(0.4)  # 초당 요청 수 제한 준수 (TPS가 5라면 최소 0.4초 간격)
+                            time.sleep(0.3)  # 초당 요청 수 제한 준수 (TPS가 5라면 최소 0.3초 간격)
                             break  # 성공하면 반복 종료
                         else:
                             raise ValueError("소요 시간을 가져오는 데 실패했습니다.")
@@ -105,10 +110,10 @@ if __name__ == "__main__":
                 break  # 오류 발생 시 반복문 종료
 
         # travel_times에 따라 항상 데이터프레임 업데이트
-        df = df.iloc[:len(travel_times)]  # 이미 처리된 데이터만 반영
-        df['travel_time_sec'] = travel_times
-        df['travel_time_h'] = df['travel_time_sec'] // 3600
-        df['travel_time_min'] = (df['travel_time_sec'] % 3600) // 60
+        sampled_df = sampled_df.iloc[:len(travel_times)]  # 이미 처리된 데이터만 반영
+        sampled_df['travel_time_sec'] = travel_times
+        sampled_df['travel_time_h'] = sampled_df['travel_time_sec'] // 3600
+        sampled_df['travel_time_min'] = (sampled_df['travel_time_sec'] % 3600) // 60
 
         # 결과 출력
         if error_occurred:
@@ -116,14 +121,14 @@ if __name__ == "__main__":
         else:
             print("조건에 맞는 병원이 처리되었습니다.")
 
-    hospitals_df = df.copy()
+    hospitals_df = sampled_df.copy()
     # 임베딩 생성
-    user_embedding = embed_user_profile(basic_info, health_info)
-    hospital_embeddings = embed_hospital_data(hospitals_df)
+    user_embedding = recommender.embed_user_profile(basic_info, health_info)
+    hospital_embeddings = recommender.embed_hospital_data(hospitals_df)
 
-    autoencoder = train_autoencoder(hospital_embeddings, input_dim=hospital_embeddings.shape[1], latent_dim=64)
+    autoencoder = recommender.train_autoencoder(hospital_embeddings, input_dim=hospital_embeddings.shape[1], latent_dim=64)
 
-    recommended_hospitals = recommend_hospitals(
+    recommended_hospitals = recommender.recommend_hospitals(
         autoencoder=autoencoder, 
         user_embedding=user_embedding, 
         hospital_embeddings=hospital_embeddings, 
@@ -132,5 +137,4 @@ if __name__ == "__main__":
         use_autoencoder=True
     )
 
-    recommended_hospitals[["yadmnm", "clcdnm", "dgsbjt", "travel_time_h", "travel_time_min", "similarity"]]
-
+    print(recommended_hospitals[["name", "clcdnm", "department", "travel_time_h", "travel_time_min", "similarity"]])
