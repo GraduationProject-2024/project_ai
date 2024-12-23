@@ -2,12 +2,15 @@ import openai
 import json
 import configparser
 from prompting_gpt import get_medical_info
+import time
 
 config = configparser.ConfigParser()
 config.read('C:/Users/user/Desktop/24-2/졸업프로젝트/project_ai/keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
 
 if __name__ == "__main__":
+    start_time = time.time()
+
     # 테스트 증상 정보
     symptoms = {
         "macro_body_part": "Chest",
@@ -23,3 +26,6 @@ if __name__ == "__main__":
 
     # 결과 출력
     print(json.dumps(result, indent=4, ensure_ascii=False))
+    
+    end_time = time.time()
+    print(f"Execution Time: {end_time - start_time:.2f} seconds")

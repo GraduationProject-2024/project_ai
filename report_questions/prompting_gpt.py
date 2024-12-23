@@ -87,8 +87,9 @@ def get_medical_info(symptoms, language):
             "Respond in JSON format with the following keys:\n"
             "1) 'department': The most relevant medical department (translated into the user's language and Korean).\n"
             "2) 'possible_conditions': A list of possible conditions or diseases.\n"
-            "3) 'questions_for_doctor': A list of questions the user should ask their doctor.\n"
-            "Respond in both the user's language and Korean. Ensure all translations use the valid terms provided in the list above."
+            "3) 'questions_for_doctor': A list of questions the user should ask their doctor. It is consist of 5 questions. Each question must be provided in both the user's language and Korean.\n"
+            "4) 'symptom_checklist': A detailed checklist of symptoms associated with each possible condition listed in 'possible_conditions'. Each entry in the checklist should correspond to a condition from 'possible_conditions' and include a list of up to five symptom names translated into both Korean and the user's language. Symptoms should reflect the severity and uniqueness of the condition, while common symptoms can be shared among conditions.\n"
+            "Respond in both the user's language and Korean above all. Ensure all translations use the valid terms provided in the list above."
         )
 
         # GPT API 호출
