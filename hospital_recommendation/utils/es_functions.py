@@ -18,8 +18,26 @@ def query_elasticsearch(user_lat, user_lon, department=None, secondary_hospital=
 
     #Elasticsearch 쿼리 구성
     must_queries = []
-    if department:
+    # 특수한 department 케이스 처리
+    if department == "치의과":
+        dental_departments = [
+            "치과", "구강악안면외과", "치과보철과", "치과교정과", "소아치과",
+            "치주과", "치과보존과", "구강내과", "영상치의학과", "구강병리과",
+            "예방치과", "통합치의학과"
+        ]
+        must_queries.append({"terms": {"dgsbjt": dental_departments}})
+    elif department == "한방과":
+        oriental_departments = [
+            "한방내과", "한방부인과", "한방소아과", "한방안·이비인후·피부과",
+            "한방신경정신과", "침구과", "한방재활의학과", "사상체질과", "한방응급"
+        ]
+        must_queries.append({"terms": {"dgsbjt": oriental_departments}})
+    elif department:
+        # 기존 department 처리
         must_queries.append({"match_phrase": {"dgsbjt": department}})
+
+    # if department:
+        # must_queries.append({"match_phrase": {"dgsbjt": department}})
     
     #메인 쿼리
     query = {

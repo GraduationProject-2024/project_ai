@@ -32,6 +32,80 @@ class HospitalRecommender:
             print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}")
         
         return model
+    
+    def train_vae(self, data, input_dim, hidden_dim, latent_dim, epochs=100, lr=0.001):
+        """
+        Variational Autoencoder (VAE) 학습
+        :param data: 입력 데이터 (numpy array)
+        :param input_dim: 입력 데이터 차원
+        :param hidden_dim: 중간층 차원
+        :param latent_dim: 잠재 공간 차원
+        :param epochs: 학습 반복 횟수
+        :param lr: 학습률
+        :return: 학습된 VAE 모델
+        """
+        # VAE 모델 정의
+        class VAE(nn.Module):
+            def __init__(self, input_dim, hidden_dim, latent_dim):
+                super(VAE, self).__init__()
+                self.encoder = nn.Sequential(
+                    nn.Linear(input_dim, hidden_dim),
+                    nn.LeakyReLU()
+                )
+                self.mu_layer = nn.Linear(hidden_dim, latent_dim)
+                self.log_var_layer = nn.Linear(hidden_dim, latent_dim)
+                self.decoder = nn.Sequential(
+                    nn.Linear(latent_dim, hidden_dim),
+                    nn.LeakyReLU(),
+                    nn.Linear(hidden_dim, input_dim),
+                    nn.Sigmoid()
+                )
+
+            def encode(self, x):
+                h = self.encoder(x)
+                mu = self.mu_layer(h)
+                log_var = self.log_var_layer(h)
+                return mu, log_var
+
+            def reparameterize(self, mu, log_var):
+                std = torch.exp(0.5 * log_var)
+                eps = torch.randn_like(std)
+                return mu + eps * std
+
+            def decode(self, z):
+                return self.decoder(z)
+
+            def forward(self, x):
+                mu, log_var = self.encode(x)
+                z = self.reparameterize(mu, log_var)
+                reconstructed = self.decode(z)
+                return reconstructed, mu, log_var
+
+        # VAE 모델 초기화
+        vae_model = VAE(input_dim, hidden_dim, latent_dim)
+        optimizer = optim.Adam(vae_model.parameters(), lr=lr)
+        criterion = nn.MSELoss(reduction='sum')  # Reconstruction Loss
+
+        # 데이터를 PyTorch Tensor로 변환
+        tensor_data = torch.tensor(data, dtype=torch.float32)
+
+        # 학습 루프
+        for epoch in range(epochs):
+            vae_model.train()
+            optimizer.zero_grad()
+
+            reconstructed, mu, log_var = vae_model(tensor_data)
+            # 손실 계산: Reconstruction Loss + KL Divergence
+            recon_loss = criterion(reconstructed, tensor_data)
+            kl_div = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+            loss = recon_loss + kl_div
+
+            loss.backward()
+            optimizer.step()
+
+            print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}, Recon Loss: {recon_loss.item()}, KL Div: {kl_div.item()}")
+
+        return vae_model
 
     #사용자 프로필 임베딩 함수
     def embed_user_profile(self, basic_info, health_info):
@@ -78,7 +152,8 @@ class HospitalRecommender:
 
 
     #추천 함수
-    def recommend_hospitals(self, autoencoder, user_embedding, hospital_embeddings, hospitals_df, department=None, suspected_disease=None, use_autoencoder=False):
+    #def recommend_hospitals(self, autoencoder, user_embedding, hospital_embeddings, hospitals_df, department=None, suspected_disease=None, use_autoencoder=False):
+    def recommend_hospitals(self, vae, user_embedding, hospital_embeddings, hospitals_df, department=None, suspected_disease=None, use_vae=False):
         #사용자 임베딩 차원 맞추기 (Zero Padding)
         if user_embedding.shape[0] < hospital_embeddings.shape[1]:
             padding = hospital_embeddings.shape[1] - user_embedding.shape[0]
@@ -86,18 +161,20 @@ class HospitalRecommender:
         else:
             user_embedding_padded = user_embedding
 
-        if use_autoencoder:
+        #if use_autoencoder:
             #AutoEncoder를 사용하여 latent space로 변환
+        if use_vae:
+            #vae 사용해서 latent space로 변환
             user_tensor = torch.tensor(user_embedding_padded, dtype=torch.float32).unsqueeze(0)
             hospital_tensor = torch.tensor(hospital_embeddings, dtype=torch.float32)
 
-            user_latent, _ = autoencoder(user_tensor)
-            hospital_latents, _ = autoencoder(hospital_tensor)
+            user_latent, _ = vae.encode(user_tensor)#autoencoder(user_tensor)
+            hospital_latents, _ = vae.encode(hospital_tensor)#autoencoder(hospital_tensor)
 
             #코사인 유사도 계산
             similarities = cosine_similarity(user_latent.detach().numpy(), hospital_latents.detach().numpy())
         else:
-            # AutoEncoder를 사용하지 않고 코사인 유사도 직접 계산
+            # vae를 사용하지 않고 코사인 유사도 직접 계산
             similarities = cosine_similarity([user_embedding_padded], hospital_embeddings)
 
         #유사도 결과를 병원 데이터프레임에 추가
@@ -105,9 +182,16 @@ class HospitalRecommender:
 
         #department 유사도 추가(선택)
         if department:
-            #병원 이름에 department 포함 여부 확인 및 가중치 부여
-            hospitals_df["department_match"] = hospitals_df["name"].apply(lambda name: department in name)
-            hospitals_df["similarity"] += hospitals_df["department_match"] * 0.1  # 가중치 0.1 추가    
+            if department == "치의과":
+                hospitals_df["department_match"] = hospitals_df["name"].apply(lambda name: "치과" in name if name else False)
+            elif department == "한방과":
+                hospitals_df["department_match"] = hospitals_df["name"].apply(lambda name: any(x in name for x in ["한의원", "한방"]) if name else False)
+            else:
+                hospitals_df["department_match"] = hospitals_df["name"].apply(lambda name: department in name if name else False)
+            
+        # 가중치 부여
+        hospitals_df["similarity"] += hospitals_df["department_match"] * 0.1  # 가중치 0.1 추가
+
 
         #suspected_disease와 병원 이름 유사도 추가(선택)
         if suspected_disease:

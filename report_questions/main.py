@@ -12,11 +12,17 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # 테스트 증상 정보
+    # symptoms = {
+    #     "macro_body_part": "Chest",
+    #     "micro_body_part": "Left lung",
+    #     "symptom_details": "Persistent cough, moderate pain, 3 days duration",
+    #     "additional_info": "https://s3.amazonaws.com/bucket/image.jpg"
+    # }
     symptoms = {
-        "macro_body_part": "Chest",
-        "micro_body_part": "Left lung",
-        "symptom_details": "Persistent cough, moderate pain, 3 days duration",
-        "additional_info": "https://s3.amazonaws.com/bucket/image.jpg"
+    "macro_body_part": "Mouth",
+    "micro_body_part": "Wisdom tooth",
+    "symptom_details": "Severe pain, swelling, difficulty opening mouth, 5 days duration",
+    "additional_info": "https://s3.amazonaws.com/bucket/image.jpg"
     }
     language = "vi"  # 사용자 언어: en(영어), mn(몽골어), zh(중국어-간체), 
     #zh-TW(중국어-번체), vi(베트남어)

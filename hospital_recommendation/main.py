@@ -126,15 +126,18 @@ if __name__ == "__main__":
     user_embedding = recommender.embed_user_profile(basic_info, health_info)
     hospital_embeddings = recommender.embed_hospital_data(hospitals_df)
 
-    autoencoder = recommender.train_autoencoder(hospital_embeddings, input_dim=hospital_embeddings.shape[1], latent_dim=64)
+    #autoencoder = recommender.train_autoencoder(hospital_embeddings, input_dim=hospital_embeddings.shape[1], latent_dim=64)
+    vae = recommender.train_vae(hospital_embeddings, input_dim=hospital_embeddings.shape[1], latent_dim=64, hidden_dim=128)
 
     recommended_hospitals = recommender.recommend_hospitals(
-        autoencoder=autoencoder, 
+        vae = vae,
+        #autoencoder=autoencoder, 
         user_embedding=user_embedding, 
         hospital_embeddings=hospital_embeddings, 
         hospitals_df=hospitals_df, 
         department=department,
-        use_autoencoder=True
+        #use_autoencoder=False
+        use_vae = True
     )
 
     print(recommended_hospitals[["name", "clcdnm", "department", "travel_time_h", "travel_time_min", "similarity"]])
