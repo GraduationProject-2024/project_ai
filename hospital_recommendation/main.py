@@ -39,10 +39,11 @@ if __name__ == "__main__":
 
     user_lat = coords['lat']  
     user_lon = coords['lon']
-    department = "내과" #gpt 통해서 prompt 받고 결과 확인해야 함.
+    #gpt 통해서 prompt를 받음으로써, department와 suspected_disease 결과 확인해야 함.
+    department = "내과" 
     suspected_disease = "감기"
 
-    #선택 옵션을 백에서 확인해야 함.
+    #이것도 springboot에서 선택값 받아야와야 함.
     secondary_hospital = False
     tertiary_hospital = False
 
