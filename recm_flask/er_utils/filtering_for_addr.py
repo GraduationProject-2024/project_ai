@@ -1,12 +1,9 @@
-import configparser
 import xml.etree.ElementTree as ET
+import os
 
 class AddressFilter:
-    def __init__(self, config_path):
-        #ConfigParser 초기화 및 설정 파일 읽기
-        self.config = configparser.ConfigParser()
-        self.config.read(config_path)
-        self.service_key = self.config['API_KEYS']['public_portal_api_key']
+    def __init__(self):
+        self.service_key = os.getenv("PUBLIC_PORTAL_API_KEY")
 
     def fetch_trauma_center_hpids(self):
         """

@@ -112,7 +112,8 @@ if __name__ == "__main__":
 
         # travel_times에 따라 항상 데이터프레임 업데이트
         sampled_df = sampled_df.iloc[:len(travel_times)]  # 이미 처리된 데이터만 반영
-        sampled_df['travel_time_sec'] = travel_times
+        sampled_df['travel_time'] = travel_times
+        sampled_df['travel_time_sec'] = sampled_df['travel_time'].apply(lambda x: x % 60 if x is not None else None)  # 초 단위만 저장
         sampled_df['travel_time_h'] = sampled_df['travel_time_sec'] // 3600
         sampled_df['travel_time_min'] = (sampled_df['travel_time_sec'] % 3600) // 60
 
