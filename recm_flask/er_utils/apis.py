@@ -40,7 +40,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
     import redis
     from er_utils.for_redis import get_redis_client
     import os
-
+    
     """
     중증질환 조건에 맞는 병원의 hpid를 Redis 캐싱을 통해 필터링
     :param stage1: 시도 (STAGE1)
@@ -69,7 +69,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
         "STAGE2": stage2,
         "pageNo": 1,
         "numOfRows": 100,
-        "serviceKey": os.getenv("PUBLIC_PORTAL_API_KEY")  
+        "serviceKey": os.getenv("PUBLIC_PORTAL_API_KEY")
         }
     hpid_list = []
 
@@ -113,7 +113,11 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
     from er_utils.for_redis import get_redis_client
     import json
     import xml.etree.ElementTree as ET
-    import os
+    import configparser
+    
+    config = configparser.ConfigParser()
+    config.read('C:/Users/user/Desktop/24-2/졸업프로젝트/project_ai/keys.config')
+    
 
     redis_client = get_redis_client()
     """
@@ -129,7 +133,7 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
         "STAGE2": stage2,
         "pageNo": 1,
         "numOfRows": 100,
-        "serviceKey": os.getenv("PUBLIC_PORTAL_API_KEY")  
+        "serviceKey": config['API_KEYS']['public_portal_api_key']  
     }
     result = []
 
@@ -139,7 +143,7 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
         print(f"생성된 Redis 키: {redis_key}")
         
         cached_data = redis_client.get(redis_key)
-        print(f"저장된 응급실 Redis 캐시 데이터: {cached_data}")
+        #print(f"저장된 응급실 Redis 캐시 데이터: {cached_data}")
         
         if cached_data:
             print(f"Redis에서 {hpid} 데이터 로드")

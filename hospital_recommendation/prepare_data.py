@@ -82,3 +82,4 @@ def fetch_and_store_data(department_name, servicekey, pageNo):
     #MySQL에 데이터 저장
     save_to_mysql(data_to_insert)
     print('저장 완료')
+

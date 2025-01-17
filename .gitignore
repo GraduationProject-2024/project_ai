@@ -3,3 +3,8 @@ elasticsearch-8.15.3
 logstash-8.16.0
 keys.config
 __pycache__
+local_recm_flask
+http_ca.crt
+data_preprocessing.ipynb
+prerocessing.sql
+final_hospital_data.csv

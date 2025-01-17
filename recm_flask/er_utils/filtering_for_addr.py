@@ -3,6 +3,7 @@ import os
 
 class AddressFilter:
     def __init__(self):
+        
         self.service_key = os.getenv("PUBLIC_PORTAL_API_KEY")
 
     def fetch_trauma_center_hpids(self):
@@ -71,7 +72,11 @@ class AddressFilter:
     def enrich_filtered_df(self, filtered_df):
         #filtered_df에 새로운 열 추가
         trauma_hpids = self.fetch_trauma_center_hpids()
-        print(f"외상센터 hpid 수집 완료: {trauma_hpids}")
+        print(f"외상센터 hpid 수집 완료")
+        #['A1700004', 'A2100002', 'A2100040', 'A2200001', 'A2300001',
+        #  'A2400002', 'A2500001', 'A2600011', 'A2700014', 'A2800001',
+        #  'A2900001', 'A1300002', 'A1400001', 'A1500002', 'A1600002',
+        #  'A1100008', 'A1100014', 'A1100017', 'A1100052', 'A1200002']
 
         #새로운 열 초기화
         filtered_df = filtered_df.copy()  #SettingWithCopyWarning 방지
