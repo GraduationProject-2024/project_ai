@@ -82,7 +82,7 @@ class HospitalRecommender:
             loss.backward()
             optimizer.step()
 
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}, Recon Loss: {recon_loss.item()}, KL Div: {kl_div.item()}")
+            #print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}, Recon Loss: {recon_loss.item()}, KL Div: {kl_div.item()}")
 
         return vae_model
 
@@ -131,7 +131,7 @@ class HospitalRecommender:
 
 
     #추천 함수
-    def recommend_hospitals(self, vae, user_embedding, hospital_embeddings, hospitals_df, department=None, suspected_disease=None, use_vae=False):
+    def recommend_hospitals(self, user_embedding, hospital_embeddings, hospitals_df, vae=None, department=None, suspected_disease=None, use_vae=False):
         #사용자 임베딩 차원 맞추기 (Zero Padding)
         if user_embedding.shape[0] < hospital_embeddings.shape[1]:
             padding = hospital_embeddings.shape[1] - user_embedding.shape[0]

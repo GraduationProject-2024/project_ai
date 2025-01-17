@@ -1,6 +1,7 @@
 def get_travel_time_er(user_lat, user_lon, hospital_lat, hospital_lon):
     import requests
     import os
+
     # 혼잡도 매핑
     congestion_mapping = {
         1: "원활",

@@ -2,7 +2,12 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
     from elasticsearch import Elasticsearch
     import os
     #Elasticsearch 클라이언트 설정
-    es = Elasticsearch(os.getenv("ES_HOST"))
+    es = Elasticsearch(
+        hosts=[os.getenv("ES_HOST")],
+        basic_auth=(os.getenv("ES_ID"), os.getenv("ES_PW")),
+        #ca_certs="./local_recm_flask/http_ca.crt",  # 로컬에 저장된 CA 인증서 경로
+        verify_certs=False
+    )
 
     #병원 유형 필터 구성
     must_clcdnm = []
@@ -52,43 +57,21 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
                     "params": {"lat": user_lat, "lon": user_lon}
                 }
             }
-        }
+        },
+        "size": 50  # 최대 50개 결과 제한
     }
 
     #병원 유형 필터 추가
     if must_clcdnm:
         query["query"]["bool"]["must"].append({"terms": {"clcdnm": must_clcdnm}})
     
-    #Scroll API 사용
-    scroll_time = "2m"  # Scroll 컨텍스트 유지 시간
-    batch_size = 1000  # 한 번에 가져올 문서 수
-    results = []
-
-    #Scroll 초기화
+    # Elasticsearch 검색 실행
     response = es.search(
         index="hospital_records",
-        body=query,
-        scroll=scroll_time,
-        size=batch_size
+        body=query
     )
-    scroll_id = response["_scroll_id"]
-    hits = response["hits"]["hits"]
-    results.extend(hits)
-
-    #Scroll 반복
-    while True:
-        response = es.scroll(scroll_id=scroll_id, scroll=scroll_time)
-        scroll_id = response["_scroll_id"]
-        hits = response["hits"]["hits"]
-        if not hits:
-            break
-        results.extend(hits)
-
-    #Scroll 컨텍스트 해제
-    es.clear_scroll(scroll_id=scroll_id)
-
-    #return results
-    return {'hits': {'hits': results}}
+    
+    return response
 
 def filtering_hosp(results):
     """

@@ -1,7 +1,12 @@
 from elasticsearch import Elasticsearch
 import os
-# Elasticsearch 클라이언트 설정
-es = Elasticsearch(os.getenv("ES_HOST"))
+#Elasticsearch 클라이언트 설정
+es = Elasticsearch(
+    hosts=[os.getenv("ES_HOST")],
+    basic_auth=(os.getenv("ES_ID"), os.getenv("ES_PW")),
+    #ca_certs="./local_recm_flask/http_ca.crt",  # 로컬에 저장된 CA 인증서 경로
+    verify_certs=False
+)
 
 def query_elasticsearch_pharmacy(user_lat, user_lon):
     """
@@ -31,7 +36,8 @@ def query_elasticsearch_pharmacy(user_lat, user_lon):
                     "unit": "km"
                 }
             }
-        ]
+        ],
+        "size": 50  # 최대 50개 결과 제한
     }
 
     # Elasticsearch 검색 실행
