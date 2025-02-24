@@ -2,11 +2,17 @@ from flask import request, jsonify, Flask
 from text_119_utils.stt_tts_translation import transcribe_audio, translate_and_filter_text, generate_tts
 from text_119_utils.sms import send_messages
 
-from text_119_utils.s3_utils import upload_to_s3
+from text_119_utils.s3_utils import upload_to_s3#, upload_image_to_s3
 import os
 #from text_119_utils.detect_language import detect_language
+from text_119_utils.selenium_test import setup_driver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
 
 app = Flask(__name__)
+
+
 
 #119 text reporting
 @app.route('/send_messages', methods=['POST'])
@@ -97,6 +103,54 @@ def transcribe():
     })
 
 
+#웹으로 신고
+@app.route("/fill_form", methods=["POST"])
+def fill_form():
+    """프론트엔드에서 받은 값을 입력 필드에 채운 후 버튼 클릭"""
+    data = request.json
+    name = data.get("name", "테스트 이름")  # 기본값 설정
+    phone_number = data.get("number")
+    parts = phone_number.split('-')
+
+
+
+    driver = setup_driver()
+    
+    try:
+        # 119 페이지 열기
+        driver.get("https://www.119.go.kr/Center119/registEn.do")
+        time.sleep(2)  # 페이지 로드 대기
+
+        # 입력 필드 찾기 및 값 입력
+        input_field = driver.find_element(By.XPATH, '//*[@id="dsr_name"]')
+        input_field.clear()
+        input_field.send_keys(name)
+        input_field.send_keys(Keys.TAB)  # 변경 사항 반영
+        time.sleep(1)
+
+        driver.find_element(By.XPATH, '//*[@id="call_tel1"]').send_keys(parts[0])
+        driver.find_element(By.XPATH, '//*[@id="call_tel2"]').send_keys(parts[1])
+        driver.find_element(By.XPATH, '//*[@id="call_tel3"]').send_keys(parts[2])
+        time.sleep(1)  # 입력 반영 대기
+
+
+        # 버튼 찾기
+        button = driver.find_element(By.XPATH, '/html/body/div[5]/div/div[2]/div[2]/div/nav/ul/li[2]/button')
+
+        # 버튼 클릭
+        button.click()
+        time.sleep(2)  # 클릭 후 변화 확인을 위해 대기
+
+        return jsonify({"status": "success", "message": "버튼 클릭 완료"})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+    finally:
+        driver.quit()
+
+
+
 @app.route('/translate', methods=['POST'])
 def translate():
     """
@@ -149,4 +203,4 @@ def tts():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

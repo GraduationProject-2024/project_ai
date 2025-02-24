@@ -1,8 +1,14 @@
 import openai
-import os
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+#import os
+#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 from .s3_utils import upload_to_s3
+
+import configparser
+config = configparser.ConfigParser()
+config.read('C:/Users/user/Desktop/project_ai/keys.config')
+openai.api_key = config['API_KEYS']['chatgpt_api_key']
+
 
 def transcribe_audio(audio_file_path):
 
@@ -37,15 +43,9 @@ def translate_and_filter_text(text, target_language="ko"):
         "ko":"Korean",
         "en":"English",
         "vi":"Vietnamese",
+        #"mn":"Mongolian",
         "zh":"Chinese(Simplified)",
-        "zh-hant":"Chinese(Traditional)",
-        "ja": "Japanese",
-        "fr": "French",
-        "es": "Spanish",
-        "de": "German",
-        "ru": "Russian",
-        "ar": "Arabic",
-        "hi": "Hindi"
+        "zh-hant":"Chinese(Traditional)"
     }
     language = language_map.get(target_language)
 
