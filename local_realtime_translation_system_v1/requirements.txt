@@ -1,0 +1,7 @@
+flask==3.0.0
+openai
+pymongo
+boto3
+pytz
+langdetect
+pymysql

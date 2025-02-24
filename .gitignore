@@ -12,3 +12,11 @@ local_recm_flask_v4
 vae_pretrained_model.pth
 twilio_2FA_recovery_code.txt
 tts_outputs
+logstash_sync_1_1.bat
+logstash_sync_1_2.bat
+hospital_synchronizer.conf
+pharmacy_synchronizer.conf
+logstash_sync_2_1.bat
+logstash_sync_2_2.bat
+logstash_sync_master.bat
+Dockerfile

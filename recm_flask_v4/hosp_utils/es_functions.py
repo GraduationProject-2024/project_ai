@@ -67,7 +67,8 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
     
     # Elasticsearch 검색 실행
     response = es.search(
-        index="hospital_records_v3",
+        #index="hospital_records_v3",
+        index="hospital_records_realtime",
         body=query
     )
     

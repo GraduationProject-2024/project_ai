@@ -42,6 +42,6 @@ def query_elasticsearch_pharmacy(user_lat, user_lon):
     }
 
     # Elasticsearch 검색 실행
-    es_results = es.search(index="pharmacy_records_v2", body=query)
+    es_results = es.search(index="pharmacy_records_realtime", body=query)
     #print(es_results)
     return es_results
