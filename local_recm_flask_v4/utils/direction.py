@@ -1,7 +1,6 @@
 # Google Directions API 사용 -> 모드별 소요 시간 및 거리 측정
 def get_travel_time_and_distance(user_lat, user_lon, hospital_lat, hospital_lon):
     import requests
-    import os
     """
     Google Directions API를 사용하여 사용자 위치와 병원 간의 이동 소요시간과 거리를 반환합니다.
 
@@ -14,13 +13,16 @@ def get_travel_time_and_distance(user_lat, user_lon, hospital_lat, hospital_lon)
     Returns:
     - dict: 모드별 소요 시간 (초 단위) 및 거리 (km)
     """
-    
-    url = "https://maps.googleapis.com/maps/api/directions/json"
+    import configparser
 
+    config = configparser.ConfigParser()
+    config.read('keys.config')
+
+    url = "https://maps.googleapis.com/maps/api/directions/json"
     params = {
         "origin": f"{user_lat},{user_lon}",
         "destination": f"{hospital_lat},{hospital_lon}",
-        "key": os.getenv("GOOGLE_API_KEY"),
+        "key": config['API_KEYS']['google_api_key'],
         "mode": "transit"
     }
 

@@ -203,4 +203,4 @@ def get_session_summary(session_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=True)
+    app.run(host="0.0.0.0", port=5002, debug=True, threaded=True)

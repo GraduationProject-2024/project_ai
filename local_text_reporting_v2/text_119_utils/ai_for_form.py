@@ -1,11 +1,8 @@
 import openai
 import configparser
-
-from text_119_utils.detect_language import detect_language
-
 # API 키 설정
 config = configparser.ConfigParser()
-config.read('C:/Users/user/Desktop/project_ai/keys.config')
+config.read('keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
 
 
@@ -62,81 +59,11 @@ def generate_title_and_type(content):
 
 import json
 def summarize_content(content):
-    # """
-    # 신고 내용을 400자 이내로 요약하고, 원래 사용된 언어 정보를 추가
-    # """
-    # detected_language = detect_language(content)  # 언어 감지
-    # if detected_language == "한국어":
-    #     if len(content) <= 400:
-    #         prompt = f"""
-    #         Refine the following text in {detected_language} to remove any vulgar, insulting, or offensive language,
-    #         while keeping the original meaning. If the text is already appropriate, return it as it is.
-            
-    #         ---
-    #         {content}
-    #         ---
-    #         """
-    #         max_tokens = 400
-    #     else:
-    #         prompt = f"""
-    #         Summarize the following content in natural Korean within 400 characters while refining any vulgar, insulting,
-    #         or offensive language. Ensure that the meaning remains intact.
-        
-    #         ---
-    #         {content}
-    #         ---
-    #         """
-    #         max_tokens = 400
-    # elif detected_language == "영어":
-    #     if len(content) <= 800:
-    #         prompt = f"""
-    #         Refine the following text in {detected_language} to remove any vulgar, insulting, or offensive language,
-    #         while keeping the original meaning. If the text is already appropriate, return it as it is.
-            
-    #         ---
-    #         {content}
-    #         ---
-    #         """
-    #         max_tokens = 800
-    #     else:
-    #         prompt = f"""
-    #         Summarize the following content in natural English within 800 characters while refining any vulgar, insulting,
-    #         or offensive language. Ensure that the meaning remains intact.
-        
-    #         ---
-    #         {content}
-    #         ---
-    #         """
-    #         max_tokens = 800
-    # # else:
-    # #     # 다른 언어라면 한국어로 번역하고 378자 이내로 요약
-    # #     prompt = f"""
-    # #     Translate the following content into natural Korean and summarize it within 378 characters while refining
-    # #     any vulgar, insulting, or offensive language. Ensure that the meaning remains intact.
-        
-    # #     ---
-    # #     {content}
-    # #     ---
-    # #     """
-    # #     max_tokens = 378
-    # else:
-    #     # 다른 언어라면 영어로 번역하고 756자 이내로 요약
-    #     prompt = f"""
-    #     Translate the following content into natural English and summarize it within 756 characters while refining
-    #     any vulgar, insulting, or offensive language. Ensure that the meaning remains intact.
-        
-    #     ---
-    #     {content}
-    #     ---
-    #     """
-    #     max_tokens = 756
     """
     신고 내용을 영어와 한국어로 번역 & 요약 (총 800 bytes 이내)
     - 모든 언어를 감지하여 영어와 한국어로 변환
     - 욕설 및 불쾌한 표현을 필터링하여 정제
     """
-    detected_language = detect_language(content)  # 언어 감지
-
     prompt = f"""
     Analyze the following report and generate a refined summary in both Korean and English.
     - Ensure that any vulgar, insulting, or offensive language is removed while preserving the original meaning.
@@ -155,22 +82,6 @@ def summarize_content(content):
     ---
     """
     
-    # try:
-    #     response = openai.chat.completions.create(
-    #         model="gpt-3.5-turbo",
-    #         messages=[{"role": "system", "content": prompt}],
-    #         max_tokens=max_tokens
-    #     )
-    #     summary = response.choices[0].message.content
-        
-    #     if detected_language != "한국어":
-    #         summary = f"({detected_language}에서 번역됨[Mediko]) {summary}"
-
-    #     return summary
-    
-    # except Exception as e:
-    #     print(f"❌ 요약 실패: {e}")
-    #     return f"({detected_language}에서 번역됨[Mediko]) {content[:378]}" if detected_language != "한국어" else content[:400]  # 실패 시 400자 제한
     try:
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",

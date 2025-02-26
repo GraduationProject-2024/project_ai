@@ -2,9 +2,11 @@
 
 import openai
 import json
-import os
+import configparser
+config = configparser.ConfigParser()
+config.read('keys.config')
+openai.api_key = config['API_KEYS']['chatgpt_api_key']
 
-openai.api_key = os.getenv("CHATGPT_API_KEY")
 def get_medical_info(symptoms, language):
     """
     사용자의 증상 정보를 기반으로 GPT를 호출하여 진료과, 의심되는 질병 정보, 의사에게 할 질문 리스트를 JSON으로 반환

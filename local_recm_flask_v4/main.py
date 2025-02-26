@@ -39,6 +39,8 @@ def recommend_hospital():
     geocoding_start_time = time.time()
 
     data = request.json  # JSON 데이터 파싱
+    
+    #사용자 실제 현 위치
     user_lat = data.get('lat')
     user_lon = data.get('lon')
 
@@ -113,11 +115,10 @@ def recommend_hospital():
     user_embedding = recommender.embed_user_profile(basic_info, health_info)
     hospital_embeddings = recommender.embed_hospital_data(df, suspected_disease=suspected_disease)
     
-    #print('columns of main df is:', df.columns)
 
     # 사전학습된 VAE 로드
     vae = VAE(input_dim=hospital_embeddings.shape[1], hidden_dim=128, latent_dim=64)
-    vae.load_state_dict(torch.load("vae_pretrained_model.pth", weights_only=True))
+    vae.load_state_dict(torch.load("vae_pretrained_model.pth"))
     vae.eval()  # 평가 모드 설정
     
     recommended_hospitals = recommender.recommend_hospitals(
@@ -159,6 +160,7 @@ def recommend_pharmacy():
 
     # Elasticsearch 쿼리 실행
     es_results = query_elasticsearch_pharmacy(user_lat, user_lon)
+
 
     if "hits" in es_results and es_results['hits']['total']['value'] > 0:
         pharmacy_data = [hit['_source'] for hit in es_results['hits']['hits']]
@@ -372,6 +374,5 @@ def geocode_coords_to_address():
         return jsonify({"error": str(e)}), 500
 
 
-    
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)

@@ -3,7 +3,8 @@ elasticsearch==8.17.0
 sentence-transformers==3.3.1
 torch
 numpy
-scikit-learn==1.4.0
+scikit-learn
 redis==5.2.1
-pandas==2.2.3
+pandas
 openai
+requests

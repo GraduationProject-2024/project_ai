@@ -1,9 +1,11 @@
 from elasticsearch import Elasticsearch
-import os
-#Elasticsearch 클라이언트 설정
+import configparser
+config = configparser.ConfigParser()
+config.read('keys.config')
+
 es = Elasticsearch(
-    hosts=[os.getenv("ES_HOST")],
-    basic_auth=(os.getenv("ES_ID"), os.getenv("ES_PW")),
+    hosts=[config['ES_INFO']['host']],
+    basic_auth=(config['ES_INFO']['username'], config['ES_INFO']['password']),
     #ca_certs="./local_recm_flask/http_ca.crt",  # 로컬에 저장된 CA 인증서 경로
     verify_certs=False
 )
@@ -42,6 +44,6 @@ def query_elasticsearch_pharmacy(user_lat, user_lon):
     }
 
     # Elasticsearch 검색 실행
-    es_results = es.search(index="pharmacy_records_realtime", body=query)
+    es_results = es.search(index="pharmacy_records_v2", body=query)
     #print(es_results)
     return es_results
