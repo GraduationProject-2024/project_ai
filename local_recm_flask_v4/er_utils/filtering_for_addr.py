@@ -1,10 +1,12 @@
 import xml.etree.ElementTree as ET
-import os
+import configparser
 
 class AddressFilter:
     def __init__(self):
-        self.service_key = os.getenv("PUBLIC_PORTAL_API_KEY")
-        
+        config = configparser.ConfigParser()
+        config.read('keys.config')
+        self.service_key = config['API_KEYS']['public_portal_api_key']
+
     def fetch_trauma_center_hpids(self):
         """
         외상센터의 모든 hpid를 수집
@@ -60,6 +62,7 @@ class AddressFilter:
                 dutyAddr = item.find("dutyAddr").text if item.find("dutyAddr") is not None else None
                 wgs84Lat = item.find("wgs84Lat").text if item.find("wgs84Lat") is not None else None
                 wgs84Lon = item.find("wgs84Lon").text if item.find("wgs84Lon") is not None else None
+                #print(dutyAddr, wgs84Lat, wgs84Lon)
                 return dutyAddr, wgs84Lat, wgs84Lon
             else:
                 print(f"API 응답에 item 없음: hpid={hpid}")
@@ -71,11 +74,6 @@ class AddressFilter:
     def enrich_filtered_df(self, filtered_df):
         #filtered_df에 새로운 열 추가
         trauma_hpids = self.fetch_trauma_center_hpids()
-        print(f"외상센터 hpid 수집 완료")
-        #['A1700004', 'A2100002', 'A2100040', 'A2200001', 'A2300001',
-        #  'A2400002', 'A2500001', 'A2600011', 'A2700014', 'A2800001',
-        #  'A2900001', 'A1300002', 'A1400001', 'A1500002', 'A1600002',
-        #  'A1100008', 'A1100014', 'A1100017', 'A1100052', 'A1200002']
 
         #새로운 열 초기화
         filtered_df = filtered_df.copy()  #SettingWithCopyWarning 방지
@@ -112,5 +110,5 @@ class AddressFilter:
 
         #DataFrame 열 재정렬
         filtered_df = filtered_df[columns]
-
+        #print(filtered_df['wgs84Lat'], filtered_df['wgs84Lon'])
         return filtered_df

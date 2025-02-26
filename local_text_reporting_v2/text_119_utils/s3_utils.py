@@ -1,7 +1,7 @@
 from datetime import datetime
 import configparser
 config = configparser.ConfigParser()
-config.read('C:/Users/user/Desktop/project_ai/keys.config')
+config.read('keys.config')
 import boto3
 
 S3_BUCKET_NAME = config['S3_INFO']['BUCKET_NAME']

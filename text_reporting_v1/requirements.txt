@@ -1,6 +1,0 @@
-flask==3.0.0
-openai
-twilio
-boto3
-selenium
-webdriver_manager

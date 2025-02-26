@@ -1,7 +1,7 @@
 import requests
 import configparser
 config = configparser.ConfigParser()
-config.read('C:/Users/user/Desktop/project_ai/keys.config')
+config.read('keys.config')
 
 # 주소 검색 API 정보
 API_URL = "https://business.juso.go.kr/addrlink/addrEngApi.do"

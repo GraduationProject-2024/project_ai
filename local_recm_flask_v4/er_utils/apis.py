@@ -39,7 +39,11 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
     import json
     import redis
     from er_utils.for_redis import get_redis_client
-    import os
+    import configparser
+    
+    config = configparser.ConfigParser()
+    config.read('keys.config')
+    
     """
     중증질환 조건에 맞는 병원의 hpid를 Redis 캐싱을 통해 필터링
     :param stage1: 시도 (STAGE1)
@@ -68,7 +72,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
         "STAGE2": stage2,
         "pageNo": 1,
         "numOfRows": 100,
-        "serviceKey": os.getenv("PUBLIC_PORTAL_API_KEY")
+        "serviceKey": config['API_KEYS']['public_portal_api_key']
         }
     hpid_list = []
 
@@ -112,7 +116,11 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
     from er_utils.for_redis import get_redis_client
     import json
     import xml.etree.ElementTree as ET
-    import os
+    import configparser
+    
+    config = configparser.ConfigParser()
+    config.read('keys.config')
+    
 
     redis_client = get_redis_client()
     """
@@ -128,7 +136,7 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
         "STAGE2": stage2,
         "pageNo": 1,
         "numOfRows": 100,
-        "serviceKey": os.getenv("PUBLIC_PORTAL_API_KEY")
+        "serviceKey": config['API_KEYS']['public_portal_api_key']  
     }
     result = []
 

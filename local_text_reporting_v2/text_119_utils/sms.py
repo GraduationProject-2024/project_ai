@@ -1,14 +1,8 @@
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
-#import os
-# Twilio 설정
-# TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-# TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-# TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-
 import configparser
 config = configparser.ConfigParser()
-config.read('C:/Users/user/Desktop/project_ai/keys.config')
+config.read('keys.config')
 
 TWILIO_ACCOUNT_SID = config['SMS']["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN = config['SMS']["TWILIO_AUTH_TOKEN"]

@@ -4,10 +4,8 @@ from text_119_utils.sms import send_messages
 
 from text_119_utils.s3_utils import upload_to_s3, upload_image_to_s3, download_from_s3_image
 import os
-#from text_119_utils.detect_language import detect_language
 from text_119_utils.selenium_test import setup_driver
 from selenium.webdriver.common.by import By
-#from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 import time
 from text_119_utils.en_juso import get_english_address 
@@ -200,20 +198,12 @@ def fill_form():
         time.sleep(2)  # 페이지 로드 대기
 
         # 입력 필드 찾기 및 값 입력
-        # input_field = driver.find_element(By.XPATH, '//*[@id="dsr_name"]')
-        # input_field.clear()
-        # input_field.send_keys(name)
-        # input_field.send_keys(Keys.TAB)  # 변경 사항 반영
         driver.find_element(By.XPATH, '//*[@id="dsr_name"]').send_keys(name)
         driver.find_element(By.XPATH, '//*[@id="call_tel1"]').send_keys(parts[0])
         driver.find_element(By.XPATH, '//*[@id="call_tel2"]').send_keys(parts[1])
         driver.find_element(By.XPATH, '//*[@id="call_tel3"]').send_keys(parts[2])
         time.sleep(1)
 
-        # driver.find_element(By.XPATH, '//*[@id="call_tel1"]').send_keys(parts[0])
-        # driver.find_element(By.XPATH, '//*[@id="call_tel2"]').send_keys(parts[1])
-        # driver.find_element(By.XPATH, '//*[@id="call_tel3"]').send_keys(parts[2])
-        # time.sleep(1)  # 입력 반영 대기
 
         select_element = Select(driver.find_element(By.XPATH, '//*[@id="dsrKndCdList"]'))
         for option in select_element.options:
@@ -262,7 +252,7 @@ def fill_form():
 
         # 버튼 클릭(실 사용에서는 send 버튼으로 변경 필요)
         button = driver.find_element(By.XPATH, '/html/body/div[5]/div/div[2]/div[2]/div/nav/ul/li[2]/button')
-        #button.click()
+        button.click()
         time.sleep(2)  # 클릭 후 변화 확인을 위해 대기
 
         return jsonify({"status": "success", "message": "버튼 클릭 완료"})
@@ -271,7 +261,6 @@ def fill_form():
 
     finally:
         print('끝')
-        time.sleep(30)
         driver.quit()
 
 
@@ -328,4 +317,4 @@ def tts():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True, threaded=True)

@@ -5,7 +5,7 @@ import pymysql
 import configparser
 # API 키 설정
 config = configparser.ConfigParser()
-config.read('C:/Users/user/Desktop/project_ai/keys.config')
+config.read('keys.config')
 
 
 # MySQL 연결 설정

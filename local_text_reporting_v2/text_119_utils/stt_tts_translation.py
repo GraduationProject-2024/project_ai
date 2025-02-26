@@ -6,7 +6,7 @@ from .s3_utils import upload_to_s3
 
 import configparser
 config = configparser.ConfigParser()
-config.read('C:/Users/user/Desktop/project_ai/keys.config')
+config.read('keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
 
 

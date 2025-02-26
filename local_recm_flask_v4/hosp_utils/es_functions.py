@@ -1,10 +1,12 @@
 def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hospital=False, tertiary_hospital=False):
     from elasticsearch import Elasticsearch
-    import os
+    import configparser
+    config = configparser.ConfigParser()
+    config.read('keys.config')
     #Elasticsearch 클라이언트 설정
     es = Elasticsearch(
-        hosts=[os.getenv("ES_HOST")],
-        basic_auth=(os.getenv("ES_ID"), os.getenv("ES_PW")),
+        hosts=[config['ES_INFO']['host']],
+        basic_auth=(config['ES_INFO']['username'], config['ES_INFO']['password']),
         #ca_certs="./local_recm_flask/http_ca.crt",  # 로컬에 저장된 CA 인증서 경로
         verify_certs=False
     )
@@ -67,8 +69,7 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
     
     # Elasticsearch 검색 실행
     response = es.search(
-        #index="hospital_records_v3",
-        index="hospital_records_realtime",
+        index="hospital_records_v3",
         body=query
     )
     
