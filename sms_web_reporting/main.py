@@ -44,15 +44,15 @@ def send_messages_route():
     text = request.form.get("text", '')
     audio = request.files.get("audio")
 
-    if not phone_number or not text:
-        return jsonify({"status": "error", "message": "전화번호와 메시지는 필수입니다."}), 400
-
     local_audio_path = None  # 기본값 설정
 
     if audio:
         audio_path=upload_to_s3(audio, 'audio/textreporting/')
         text, local_audio_path = transcribe_audio(audio_path)
-        
+
+    if not phone_number or not text:
+        return jsonify({"status": "error", "message": "전화번호와 메시지는 필수입니다."}), 400
+    
     
     # 번역 및 욕설 필터링
     processed_text = translate_and_filter_text(text) #if detected_lang != "ko" else text

@@ -117,8 +117,9 @@ def recommend_hospital():
     
 
     # 사전학습된 VAE 로드
-    vae = VAE(input_dim=hospital_embeddings.shape[1], hidden_dim=128, latent_dim=64)
-    vae.load_state_dict(torch.load("vae_pretrained_model.pth"))
+    
+    vae = VAE(input_dim=hospital_embeddings.shape[1], hidden_dim=32, latent_dim=16)
+    vae.load_state_dict(torch.load("vae_pretrained_model_ld16hd32.pth"))
     vae.eval()  # 평가 모드 설정
     
     recommended_hospitals = recommender.recommend_hospitals(
@@ -281,11 +282,11 @@ def recommend_er():
 
     # 7. 소요 시간 계산 및 정렬
     enriched_df = calculate_travel_time_and_sort(enriched_df, user_lat, user_lon)
-
+    
     # 필요한 열만 선택
     columns_to_return = ["dutyName", "dutyAddr", "dutyTel3", "hvamyn", "is_trauma",
                          "transit_travel_distance_km", "transit_travel_time_h",
-                         "transit_travel_time_m", "transit_travel_time_s"]
+                         "transit_travel_time_m", "transit_travel_time_s", "wgs84Lat", "wgs84Lon"]
     
     filtered_df = enriched_df[columns_to_return]
 
