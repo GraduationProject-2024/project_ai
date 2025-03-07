@@ -19,3 +19,7 @@ logstash_sync_2_1.bat
 logstash_sync_2_2.bat
 logstash_sync_master.bat
 Dockerfile
+final_hospital_data_fixed.csv
+vae_pretrained_model_ld16hd32.pth
+vae_pretrained_model_ld32hd64.pth
+vae_pretrained_model_ld64hd128.pth
