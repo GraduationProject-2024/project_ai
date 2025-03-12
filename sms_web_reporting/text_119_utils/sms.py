@@ -24,28 +24,28 @@ def send_messages(to="+8201051321887", message=None):
             to= to
         )
         
-        # # 메시지 생성 (MMS 지원)
-        # msg_params = {
-        #     "body": message,
-        #     "from_": TWILIO_PHONE_NUMBER,
-        #     "to": to
-        # }
+        ##메시지 생성 (MMS 지원)
+        #msg_params = {
+        #    "body": message,
+        #    "from_": TWILIO_PHONE_NUMBER,
+        #    "to": to
+        #}
 
-        # #이미지 처리 불가
-        #  # **MMS를 위한 media_url 리스트 초기화**
-        # media_urls = []
+        ##이미지 처리 불가
+        # #**MMS를 위한 media_url 리스트 초기화**
+        #media_urls = []
 
-        # # **이미지 업로드 후 URL 추가**
-        # if image:
-        #     image_url = upload_image_to_s3(image)
-        #     if image_url:
-        #         media_urls.append(image_url)
+        ##**이미지 업로드 후 URL 추가**
+        #if image:
+        #    image_url = upload_image_to_s3(image)
+        #    if image_url:
+        #        media_urls.append(image_url)
 
-        # # **MMS 전송 (미디어가 있을 경우)**
-        # if media_urls:
-        #     msg_params["media_url"] = media_urls
-        # print("media_urls: ", media_urls)
-        # message = client.messages.create(**msg_params)
+        ##**MMS 전송 (미디어가 있을 경우)**
+        #if media_urls:
+        #    msg_params["media_url"] = media_urls
+        #print("media_urls: ", media_urls)
+        #message = client.messages.create(**msg_params)
 
         return {"status": "success", "sid": message.sid}
     #용량 제한

@@ -7,7 +7,6 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
     es = Elasticsearch(
         hosts=[config['ES_INFO']['host']],
         basic_auth=(config['ES_INFO']['username'], config['ES_INFO']['password']),
-        #ca_certs="./local_recm_flask/http_ca.crt",  # 로컬에 저장된 CA 인증서 경로
         verify_certs=False
     )
 
@@ -20,7 +19,7 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
 
     #Elasticsearch 쿼리 구성
     must_queries = []
-    # 특수한 department 케이스 처리
+    #특수한 department 케이스 처리
     if department == "치의과":
         dental_departments = [
             "치과", "구강악안면외과", "치과보철과", "치과교정과", "소아치과",
@@ -35,7 +34,7 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
         ]
         must_queries.append({"terms": {"dgsbjt": oriental_departments}})
     elif department:
-        # 기존 department 처리
+        #기존 department 처리
         must_queries.append({"match_phrase": {"dgsbjt": department}})
 
     #메인 쿼리
@@ -52,22 +51,22 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
         "sort": [
             {"_geo_distance": {"location": {"lat": user_lat, "lon": user_lon}, "order": "asc", "unit": "km"}}
         ],
-        "script_fields": {  # 거리 값을 반환하도록 스크립트 필드 추가
+        "script_fields": {  #거리 값을 반환하도록 스크립트 필드 추가
             "es_distance_in_km": {
                 "script": {
-                    "source": "doc['location'].arcDistance(params.lat, params.lon) / 1000",  # km 거리 반환
+                    "source": "doc['location'].arcDistance(params.lat, params.lon) / 1000",  #km 거리 반환
                     "params": {"lat": user_lat, "lon": user_lon}
                 }
             }
         },
-        "size": 50  # 최대 50개 결과 제한
+        "size": 50  #최대 50개 결과 제한
     }
 
     #병원 유형 필터 추가
     if must_clcdnm:
         query["query"]["bool"]["must"].append({"terms": {"clcdnm": must_clcdnm}})
     
-    # Elasticsearch 검색 실행
+    #Elasticsearch 검색 실행
     response = es.search(
         index="hospital_records_v3",
         body=query
@@ -99,6 +98,6 @@ def filtering_hosp(results):
             "clcdnm": source.get("clcdnm"),
             "location": source.get("location"),
             "url": source.get("hospurl"),
-            "sort_score": hit.get("sort", [None])[0]  # 정렬 기준 추가
+            "sort_score": hit.get("sort", [None])[0]  #정렬 기준 추가
         })
     return filtered_results

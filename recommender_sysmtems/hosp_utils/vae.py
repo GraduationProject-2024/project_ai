@@ -12,20 +12,20 @@ class VAE(nn.Module):
         """
         super(VAE, self).__init__()
         
-        # Encoder
+        #Encoder
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.LeakyReLU()
         )
-        self.mu_layer = nn.Linear(hidden_dim, latent_dim)  # Mean vector
-        self.log_var_layer = nn.Linear(hidden_dim, latent_dim)  # Log variance vector
+        self.mu_layer = nn.Linear(hidden_dim, latent_dim)  #Mean vector
+        self.log_var_layer = nn.Linear(hidden_dim, latent_dim)  #Log variance vector
         
-        # Decoder
+        #Decoder
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, hidden_dim),
             nn.LeakyReLU(),
             nn.Linear(hidden_dim, input_dim),
-            nn.Sigmoid()  # Output values between 0 and 1
+            nn.Sigmoid()  #Output values between 0 and 1
         )
 
     def encode(self, x):
@@ -78,10 +78,10 @@ class VAE(nn.Module):
         :param log_var: 잠재 공간의 로그 분산
         :return: 총 손실 값
         """
-        # Reconstruction Loss (Binary Cross-Entropy)
+        #Reconstruction Loss (Binary Cross-Entropy)
         recon_loss = F.binary_cross_entropy(reconstructed, x, reduction="sum")
         
-        # KL Divergence
+        #KL Divergence
         kl_div = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
         
         return recon_loss + kl_div

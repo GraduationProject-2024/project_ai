@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#-*- coding: utf-8 -*-
 
 import openai
 import json
@@ -23,7 +23,7 @@ def get_medical_info(symptoms, language):
         dict: 진료과, 의심되는 질병, 의사에게 할 질문 리스트가 포함된 JSON 객체
     """
     try:
-        # 증상 정보를 문자열로 변환
+        #증상 정보를 문자열로 변환
         symptom_descriptions = []
         for symptom in symptoms:
             symptom_descriptions.append(
@@ -33,11 +33,11 @@ def get_medical_info(symptoms, language):
                 f"Additional info: {symptom.get('additional_info', 'N/A')}"
             )
 
-        # 모든 증상 정보를 하나의 설명으로 결합
+        #모든 증상 정보를 하나의 설명으로 결합
         combined_description = " | ".join(symptom_descriptions)
 
         
-        # 프롬프트 설정
+        #프롬프트 설정
         prompt = (
             "You are a multilingual medical assistant specializing in professional medical terminology. Your role is to provide accurate translations of medical-related information for individuals who need assistance navigating healthcare systems. Specifically, you help foreigners living in Korea and Koreans living abroad by translating medical information and terms in a way that is both culturally and linguistically appropriate. Ensure that all translations use formal medical terminology and avoid colloquial or overly simplified language."
             "When translating symptoms into Korean, ensure the following translations are used:\n"
@@ -75,7 +75,7 @@ def get_medical_info(symptoms, language):
         )
 
 
-        # GPT API 호출
+        #GPT API 호출
         response = openai.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
@@ -85,10 +85,10 @@ def get_medical_info(symptoms, language):
             temperature=0.4
         )
 
-        # 응답 파싱
+        #응답 파싱
         result = response.choices[0].message.content
         return json.loads(result)
 
     except Exception as e:
-        # 예외 처리
+        #예외 처리
         return {"error": str(e)}

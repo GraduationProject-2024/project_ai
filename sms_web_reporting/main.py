@@ -13,17 +13,11 @@ from text_119_utils.ai_for_form import *
 from text_119_utils.pw_gen import *
 app = Flask(__name__)
 
-# @app.route('/image_test', methods=['POST'])
-# def send_image_test():
-#     image = request.files.get('image')
-#     url = upload_image_to_s3(image, folder="images/")
-#     return url
-
 #119 신고용 비밀번호 만들기
 @app.route("/gen_119_pw", methods=["GET"])
 def generate_password_api():
     """비밀번호 생성 API"""
-    used_passwords = get_used_passwords()  # MySQL에서 used_passwords 조회
+    used_passwords = get_used_passwords()  #MySQL에서 used_passwords 조회
     password = generate_password(used_passwords)
     return jsonify({"password": password})
 
@@ -44,7 +38,7 @@ def send_messages_route():
     text = request.form.get("text", '')
     audio = request.files.get("audio")
 
-    local_audio_path = None  # 기본값 설정
+    local_audio_path = None  #기본값 설정
 
     if audio:
         audio_path=upload_to_s3(audio, 'audio/textreporting/')
@@ -54,7 +48,7 @@ def send_messages_route():
         return jsonify({"status": "error", "message": "전화번호와 메시지는 필수입니다."}), 400
     
     
-    # 번역 및 욕설 필터링
+    #번역 및 욕설 필터링
     processed_text = translate_and_filter_text(text) #if detected_lang != "ko" else text
     header_text = "[이 문자는 외국인 사용자 위주의 의료 서비스 앱, Mediko에서 번역 및 필터링 후 국제 SMS로 송신되었습니다.]\n"
     processed_text = header_text + processed_text
@@ -62,7 +56,7 @@ def send_messages_route():
     
     result = send_messages(phone_number, processed_text)
 
-    # SMS 전송 후 로컬 파일 삭제
+    #SMS 전송 후 로컬 파일 삭제
     if local_audio_path is not None:
         try:
             os.remove(local_audio_path)
@@ -99,11 +93,11 @@ def transcribe():
 
     target_language = request.form.get("target_language", "ko")
 
-    # **1) 원본 텍스트 추출 (STT)**
-    original_text, local_audio_path = transcribe_audio(s3_url)  # 번역 없이 원본 텍스트 반환
+    #1) 원본 텍스트 추출 (STT)
+    original_text, local_audio_path = transcribe_audio(s3_url)  #번역 없이 원본 텍스트 반환
     os.remove(local_audio_path)
 
-    # **2) 번역된 텍스트 생성**
+    #2) 번역된 텍스트 생성
     translated_text = translate_and_filter_text(original_text, target_language)
 
 
@@ -119,7 +113,7 @@ def transcribe():
 @app.route("/fill_form", methods=["POST"])
 def fill_form():
     """프론트엔드에서 받은 값을 입력 필드에 채운 후 버튼 클릭"""
-    name = request.form.get("name", "테스트 이름")  # 기본값 설정
+    name = request.form.get("name", "테스트 이름")  #기본값 설정
     phone_number = request.form.get("number")
     parts = []
     parts.append(phone_number[:3])
@@ -134,12 +128,12 @@ def fill_form():
     if not location:
         location = request.form.get("address")
     
-    # ✅ STT 처리: audio 파일이 있을 경우
+    #STT 처리: audio 파일이 있을 경우
     if "audio" in request.files:
         audio_file = request.files["audio"]
         s3_audio_url = upload_to_s3(audio_file, "audio/transcript/")
         transcribed_text, local_audio_path = transcribe_audio(s3_audio_url)
-        os.remove(local_audio_path)  # 임시 파일 삭제
+        os.remove(local_audio_path)  #임시 파일 삭제
         content = transcribed_text
     else:
         content = request.form.get("content", None)  
@@ -160,7 +154,7 @@ def fill_form():
     emergency_type = request.form.get("emergency_type", default_emergency_type) #content 기준으로 기본값 지정
     title = request.form.get("title", default_title) 
 
-    # 이미지 업로드 처리:3개까지 가능 (optional)
+    #이미지 업로드 처리:3개까지 가능 (optional)
     image_urls = []
     for file_key in ["file_1", "file_2", "file_3"]:
         if file_key in request.files:
@@ -168,7 +162,7 @@ def fill_form():
             s3_url = upload_image_to_s3(image_file)
             image_urls.append(s3_url)
 
-    # 한국어 주소 -> select 옵션 매핑
+    #한국어 주소 -> select 옵션 매핑
     sido_mapping = {
         "서울특별시": "11",
         "부산광역시": "26",
@@ -193,11 +187,11 @@ def fill_form():
     driver = setup_driver()
     
     try:
-        # 119 페이지 열기
+        #119 페이지 열기
         driver.get("https://www.119.go.kr/Center119/registEn.do")
-        time.sleep(2)  # 페이지 로드 대기
+        time.sleep(2)  #페이지 로드 대기
 
-        # 입력 필드 찾기 및 값 입력
+        #입력 필드 찾기 및 값 입력
         driver.find_element(By.XPATH, '//*[@id="dsr_name"]').send_keys(name)
         driver.find_element(By.XPATH, '//*[@id="call_tel1"]').send_keys(parts[0])
         driver.find_element(By.XPATH, '//*[@id="call_tel2"]').send_keys(parts[1])
@@ -209,20 +203,20 @@ def fill_form():
         for option in select_element.options:
             if option.text.strip().lower() == emergency_type.strip().lower():
                 select_element.select_by_visible_text(option.text.strip())
-                time.sleep(1)  # 선택 반영 대기
+                time.sleep(1)  #선택 반영 대기
                 break
         
         driver.find_element(By.XPATH, '//*[@id="title"]').send_keys(title)
         time.sleep(1)
 
-        # 시/도 코드 선택
+        #시/도 코드 선택
         for region, code in sido_mapping.items():
             if region in location:
                 Select(driver.find_element(By.XPATH, '//*[@id="sidoCode"]')).select_by_value(code)
-                time.sleep(1)  # 선택 반영 대기
+                time.sleep(1)  #선택 반영 대기
                 break
         
-        # 주소 영문 변환 및 세부 주소 입력력
+        #주소 영문 변환 및 세부 주소 입력력
         eng_location = get_english_address(location)
         print(eng_location)
         if eng_location:
@@ -232,7 +226,7 @@ def fill_form():
             time.sleep(1)
         
 
-        # 신고 내용 본문
+        #신고 내용 본문
         driver.find_element(By.XPATH, '//*[@id="contents"]').send_keys(processed_content)
         time.sleep(1)
 
@@ -240,20 +234,20 @@ def fill_form():
         driver.find_element(By.XPATH, '//*[@id="userPw"]').send_keys(password)
         time.sleep(1)
 
-        # ✅ S3 이미지 다운로드 후 파일 업로드
+        #S3 이미지 다운로드 후 파일 업로드
         for idx, s3_url in enumerate(image_urls):
-            local_file = download_from_s3_image(s3_url)  # 로컬 다운로드
+            local_file = download_from_s3_image(s3_url)  #로컬 다운로드
             print(local_file)
-            file_input_xpath = f'//*[@id="file_{idx+1}"]'  # file_1, file_2, file_3
+            file_input_xpath = f'//*[@id="file_{idx+1}"]'  #file_1, file_2, file_3
             driver.find_element(By.XPATH, file_input_xpath).send_keys(local_file)
             print(f'{idx+1}번째 파일 첨부 완료')
             time.sleep(1)
-            os.remove(local_file)  # 업로드 후 삭제
+            os.remove(local_file)  #업로드 후 삭제
 
-        # 버튼 클릭(실 사용에서는 send 버튼으로 변경 필요)
+        #버튼 클릭(실 사용에서는 send 버튼으로 변경 필요)
         button = driver.find_element(By.XPATH, '/html/body/div[5]/div/div[2]/div[2]/div/nav/ul/li[2]/button')
         button.click()
-        time.sleep(2)  # 클릭 후 변화 확인을 위해 대기
+        time.sleep(2)  #클릭 후 변화 확인을 위해 대기
 
         return jsonify({"status": "success", "message": "버튼 클릭 완료"})
     except Exception as e:
