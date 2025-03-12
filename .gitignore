@@ -23,3 +23,4 @@ final_hospital_data_fixed.csv
 vae_pretrained_model_ld16hd32.pth
 vae_pretrained_model_ld32hd64.pth
 vae_pretrained_model_ld64hd128.pth
+logstash_sync.bat
