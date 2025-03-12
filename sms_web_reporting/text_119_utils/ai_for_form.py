@@ -1,6 +1,6 @@
 import openai
 import configparser
-# API 키 설정
+#API 키 설정
 config = configparser.ConfigParser()
 config.read('keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
@@ -38,15 +38,15 @@ def generate_title_and_type(content):
         )
         result = response.choices[0].message.content.strip()
 
-        # ✅ JSON 변환 (예외 처리)
+        #✅ JSON 변환 (예외 처리)
         import json
         try:
             data = json.loads(result)
             title_ko = data.get("title_ko", "긴급 신고")
             title_en = data.get("title_en", "Emergency Report")
-            emergency_type = data.get("emergency_type", "Etc")  # 기본값 "Etc"
+            emergency_type = data.get("emergency_type", "Etc")  #기본값 "Etc"
         except json.JSONDecodeError:
-            print("❌ JSON 변환 실패, 기본값 반환")
+            print("JSON 변환 실패, 기본값 반환")
             title_ko = "긴급 신고"
             title_en = "Emergency Report"
             emergency_type = "Etc"
@@ -54,7 +54,7 @@ def generate_title_and_type(content):
         return title_ko, title_en, emergency_type
 
     except Exception as e:
-        print(f"❌ 제목 및 유형 생성 실패: {e}")
+        print(f"제목 및 유형 생성 실패: {e}")
         return "긴급 신고", "Emergency Report", "Etc"
 
 import json
@@ -86,7 +86,7 @@ def summarize_content(content):
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "system", "content": prompt}],
-            max_tokens=600  # 🚀 최대 800 bytes 제한을 고려하여 적절한 토큰 설정
+            max_tokens=600  #최대 800 bytes 제한을 고려하여 토큰 설정
         )
         result = response.choices[0].message.content.strip()
 
@@ -97,5 +97,5 @@ def summarize_content(content):
         return summary_ko, summary_en
 
     except Exception as e:
-        print(f"❌ 요약 실패: {e}")
+        print(f"요약 실패: {e}")
         return "요약된 신고 내용이 없습니다.", "No summarized report available."

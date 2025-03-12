@@ -1,4 +1,4 @@
-# Google Directions API 사용 -> 모드별 소요 시간 및 거리 측정
+#Google Directions API 사용 -> 모드별 소요 시간 및 거리 측정
 def get_travel_time_and_distance(user_lat, user_lon, hospital_lat, hospital_lon):
     import requests
     """
@@ -45,7 +45,7 @@ def get_travel_time_and_distance(user_lat, user_lon, hospital_lat, hospital_lon)
     return results
 
 
-# 행 데이터에 대한 여행 시간 및 거리 계산
+#행 데이터에 대한 여행 시간 및 거리 계산
 def calculate_travel_time_and_distance(row, user_lat, user_lon):
     import time
     from .geocode import address_to_coords
@@ -54,7 +54,7 @@ def calculate_travel_time_and_distance(row, user_lat, user_lon):
         hospital_lon = row["longitude"]
         addr = row["address"]
 
-        # 병원 좌표가 없을 경우 주소를 통해 좌표를 찾음
+        #병원 좌표가 없을 경우 주소를 통해 좌표를 찾음
         if hospital_lat is None or hospital_lon is None:
             coords = address_to_coords(addr)
             if "lat" in coords and "lon" in coords:
@@ -62,7 +62,7 @@ def calculate_travel_time_and_distance(row, user_lat, user_lon):
 
         travel_data = get_travel_time_and_distance(user_lat, user_lon, hospital_lat, hospital_lon)
 
-        # 시간 데이터를 시/분/초로 변환
+        #시간 데이터를 시/분/초로 변환
         if travel_data.get("transit_travel_time_sec") is not None:
             travel_time_sec = travel_data["transit_travel_time_sec"]
             travel_data["transit_travel_time_h"] = travel_time_sec // 3600
@@ -73,8 +73,8 @@ def calculate_travel_time_and_distance(row, user_lat, user_lon):
             travel_data["transit_travel_time_m"] = None
             travel_data["transit_travel_time_s"] = None
 
-        time.sleep(0.3)  # API 호출 제한 준수
-        return travel_data  # dict with travel times and distances
+        time.sleep(0.3)  #API 호출 제한 준수
+        return travel_data  #dict with travel times and distances
     except Exception as e:
         print(f"Error calculating travel time for hospital {row['name']}: {e}")
         return None

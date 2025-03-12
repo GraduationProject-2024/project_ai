@@ -23,7 +23,7 @@ class HospitalRecommender:
         :param lr: 학습률
         :return: 학습된 VAE 모델
         """
-        # VAE 모델 정의
+        #VAE 모델 정의
         class VAE(nn.Module):
             def __init__(self, input_dim, hidden_dim, latent_dim):
                 super(VAE, self).__init__()
@@ -60,21 +60,21 @@ class HospitalRecommender:
                 reconstructed = self.decode(z)
                 return reconstructed, mu, log_var
 
-        # VAE 모델 초기화
+        #VAE 모델 초기화
         vae_model = VAE(input_dim, hidden_dim, latent_dim)
         optimizer = optim.Adam(vae_model.parameters(), lr=lr)
-        criterion = nn.MSELoss(reduction='sum')  # Reconstruction Loss
+        criterion = nn.MSELoss(reduction='sum')  #Reconstruction Loss
 
-        # 데이터를 PyTorch Tensor로 변환
+        #데이터를 PyTorch Tensor로 변환
         tensor_data = torch.tensor(data, dtype=torch.float32)
 
-        # 학습 루프
+        #학습 루프
         for epoch in range(epochs):
             vae_model.train()
             optimizer.zero_grad()
 
             reconstructed, mu, log_var = vae_model(tensor_data)
-            # 손실 계산: Reconstruction Loss + KL Divergence
+            #손실 계산: Reconstruction Loss + KL Divergence
             recon_loss = criterion(reconstructed, tensor_data)
             kl_div = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
             loss = recon_loss + kl_div
@@ -114,7 +114,7 @@ class HospitalRecommender:
         #병원 이름 텍스트 임베딩 추가
         name_embeddings = self.embedding_model.encode(hospitals_df["name"].fillna("").tolist())
 
-        # 병원 소요 시간 데이터 정규화
+        #병원 소요 시간 데이터 정규화
         scaler = StandardScaler()
         time_distance_features = hospitals_df[[
             "transit_travel_time_h",
@@ -125,11 +125,24 @@ class HospitalRecommender:
         time_distance_embeddings = scaler.fit_transform(time_distance_features)
 
         #의심 질병 임베딩(선택)
+        #if suspected_disease:
+        #    suspected_disease_embedding = self.embedding_model.encode([suspected_disease])[0]
+        #    suspected_disease_embeddings = np.tile(suspected_disease_embedding, (hospitals_df.shape[0], 1))
+        #else:
+        #    suspected_disease_embeddings = np.zeros((hospitals_df.shape[0], department_embeddings.shape[1]))
+        #suspected_disease를 리스트로 강제 변환
         if suspected_disease:
-            suspected_disease_embedding = self.embedding_model.encode([suspected_disease])[0]
-            suspected_disease_embeddings = np.tile(suspected_disease_embedding, (hospitals_df.shape[0], 1))
+            if isinstance(suspected_disease, str):
+                suspected_disease = [suspected_disease]  #단일 값일 경우 리스트로 변환
+
+            #여러 의심 질병을 벡터화하고 평균값 사용
+            suspected_disease_embeddings = self.embedding_model.encode(suspected_disease)
+            avg_suspected_embedding = np.mean(suspected_disease_embeddings, axis=0)
+
+            suspected_disease_embeddings = np.tile(avg_suspected_embedding, (hospitals_df.shape[0], 1))
         else:
             suspected_disease_embeddings = np.zeros((hospitals_df.shape[0], department_embeddings.shape[1]))
+
 
         #최종 병원 벡터 결합
         return np.hstack((department_embeddings, 
@@ -159,7 +172,7 @@ class HospitalRecommender:
             #코사인 유사도 계산
             similarities = cosine_similarity(user_latent.detach().numpy(), hospital_latents.detach().numpy())
         else:
-            # vae를 사용하지 않고 코사인 유사도 직접 계산
+            #vae를 사용하지 않고 코사인 유사도 직접 계산
             similarities = cosine_similarity([user_embedding_padded], hospital_embeddings)
 
         #유사도 결과를 병원 데이터프레임에 추가
@@ -174,16 +187,23 @@ class HospitalRecommender:
             else:
                 hospitals_df["department_match"] = hospitals_df["name"].apply(lambda name: department in name if name else False)
             
-        # 가중치 부여
-        hospitals_df["similarity"] += hospitals_df["department_match"] * 0.1  # 가중치 0.1 추가
+        #가중치 부여
+        hospitals_df["similarity"] += hospitals_df["department_match"] * 0.1  #가중치 0.1 추가
 
-        #suspected_disease와 병원 이름 유사도 추가(선택)
+        #suspected_disease를 리스트로 강제 변환
         if suspected_disease:
-            disease_embeddings = self.embedding_model.encode([suspected_disease])
-            hospital_name_embeddings = self.embedding_model.encode(hospitals_df["name"].fillna("").tolist())
-            disease_similarities = cosine_similarity(disease_embeddings, hospital_name_embeddings)[0]
-            hospitals_df["similarity"] += disease_similarities * 0.001  # 가중치 0.05 추가
+            if isinstance(suspected_disease, str):
+                suspected_disease = [suspected_disease]  #단일 값일 경우 리스트로 변환
 
+            #여러 의심 질병을 벡터화하고 평균값 사용
+            disease_embeddings = self.embedding_model.encode(suspected_disease)
+            avg_disease_embedding = np.mean(disease_embeddings, axis=0)
+
+            hospital_name_embeddings = self.embedding_model.encode(hospitals_df["name"].fillna("").tolist())
+            disease_similarities = cosine_similarity([avg_disease_embedding], hospital_name_embeddings)[0]
+
+            hospitals_df["similarity"] += disease_similarities * 0.001  #가중치 추가
+            
         #similarity 값이 1을 초과하지 않도록 제한
         hospitals_df["similarity"] = hospitals_df["similarity"].clip(upper=1.0)
         #유사도 기준으로 정렬

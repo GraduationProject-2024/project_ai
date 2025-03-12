@@ -31,16 +31,16 @@ def transcribe_audio(file_path):
     return transcript.text
 
 LANGUAGE_MAP = {
-    # "af": "Afrikaans",
-    # "ar": "Arabic",
-    # "bg": "Bulgarian",
-    # "bn": "Bengali",
-    # "ca": "Catalan",
-    # "cs": "Czech",
-    # "cy": "Welsh",
-    # "da": "Danish",
-    # "de": "German",
-    # "el": "Greek",
+    #"af": "Afrikaans",
+    #"ar": "Arabic",
+    #"bg": "Bulgarian",
+    #"bn": "Bengali",
+    #"ca": "Catalan",
+    #"cs": "Czech",
+    #"cy": "Welsh",
+    #"da": "Danish",
+    #"de": "German",
+    #"el": "Greek",
     "en": "English",
     "es": "Spanish",
     "et": "Estonian",
@@ -51,7 +51,7 @@ LANGUAGE_MAP = {
     "he": "Hebrew",
     "hi": "Hindi",
     "hr": "Croatian",
-    # "hu": "Hungarian",
+    #"hu": "Hungarian",
     "id": "Indonesian",
     "it": "Italian",
     "ja": "Japanese",
@@ -95,18 +95,18 @@ def detect_language(text, gpt_detected=None):
     GPT 감지 결과가 주어지면 이를 우선 적용
     """
     try:
-        # GPT 감지 결과가 있으면 우선 사용
+        #GPT 감지 결과가 있으면 우선 사용
         if gpt_detected:
-            print(f"✅ GPT 감지 결과 사용: {gpt_detected}")
+            print(f"GPT 감지 결과 사용: {gpt_detected}")
             return gpt_detected if gpt_detected in LANGUAGE_MAP.values() else None
 
-        # langdetect를 통한 감지
+        #langdetect를 통한 감지
         lang_code = detect(text)
-        print(f"Detected language code: {lang_code}")  # 감지된 코드 확인
+        print(f"Detected language code: {lang_code}")  #감지된 코드 확인
         
         result = LANGUAGE_MAP.get(lang_code)
         if result is None:
-            print(f"❌ 매핑되지 않은 언어 코드: {lang_code}")  # 디버깅용 로그 추가
+            print(f"매핑되지 않은 언어 코드: {lang_code}")  #디버깅용 로그 추가
         return result
     except Exception as e:
         print(f"언어 감지 실패: {e}")
@@ -184,32 +184,32 @@ def translate_text(text, previous_languages=[]):
     )
 
     response_text = response.choices[0].message.content.strip()
-    print(f"GPT Response:\n{response_text}")  # 디버깅용
+    print(f"GPT Response:\n{response_text}")  #디버깅용
 
     try:
         result = json.loads(response_text)
         source_language = result.get("detected_language")
 
-        # ✅ `source_language`도 번역 대상 언어에 추가
+        #'source_language'도 번역 대상 언어에 추가
         detected_languages = list(set(previous_languages + [source_language]))
         translations = result.get("translations", {})
 
-        # ✅ None 값을 빈 JSON `{}`으로 변환하여 MongoDB 저장 시 일관성 유지
+        #None 값을 빈 JSON '{}'으로 변환하여 MongoDB 저장 시 일관성 유지
         for lang, translation in translations.items():
             if translation is None or not translation.strip():
                 translations[lang] = {}
 
     except json.JSONDecodeError:
-        print("⚠️ GPT 응답을 JSON으로 변환할 수 없음.")
+        print("GPT 응답을 JSON으로 변환할 수 없음.")
         return {
-            "source_language": detect_language(text),  # ✅ GPT가 실패하면 직접 감지
-            "detected_languages": previous_languages,  # 기존 언어 유지
-            "translations": {}  # 빈 번역 반환
+            "source_language": detect_language(text),  #GPT가 실패하면 직접 감지
+            "detected_languages": previous_languages,  #기존 언어 유지
+            "translations": {}  #빈 번역 반환
         }
 
     return {
         "source_language": source_language,
-        "detected_languages": detected_languages,  # ✅ `source_language`를 포함한 언어 목록 유지
+        "detected_languages": detected_languages,  #'source_language'를 포함한 언어 목록 유지
         "translations": translations
     }
 
@@ -222,7 +222,7 @@ s3_client = boto3.client("s3",
                         aws_access_key_id=config['S3_INFO']['ACCESS_KEY_ID'],
                         aws_secret_access_key=config['S3_INFO']['SECRET_ACCESS_KEY'],
                         region_name="ap-northeast-2")
-# AWS S3 설정
+#AWS S3 설정
 def upload_to_s3(file, folder, file_name):
     """
     파일을 AWS S3에 업로드
@@ -247,17 +247,17 @@ def generate_tts(text, lang='ko'):
     :return: S3 URL 또는 오류 메시지
     """
     try:
-        # 1️⃣ KST(한국 시간) 기준으로 timestamp 생성
+        #1.KST(한국 시간) 기준으로 timestamp 생성
         kst = pytz.timezone("Asia/Seoul")
         timestamp = int(datetime.now(kst).timestamp())
         file_name = f"{timestamp}.mp3"
 
-        # 2️⃣ 임시 파일 생성
+        #2️.임시 파일 생성
         temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
         temp_audio_path = temp_audio.name
-        temp_audio.close()  # 파일 닫기 (스트림 해제)
+        temp_audio.close()  #파일 닫기 (스트림 해제)
 
-        # 3️⃣ OpenAI TTS 호출 및 저장
+        #3️.OpenAI TTS 호출 및 저장
         response = openai.audio.speech.create(
             model="tts-1",
             voice="alloy",
@@ -265,12 +265,12 @@ def generate_tts(text, lang='ko'):
         )
         response.stream_to_file(temp_audio_path)
 
-        # 4️⃣ S3 업로드
+        #4️.S3 업로드
         with open(temp_audio_path, "rb") as audio_file:
-            audio_file.filename = file_name  # S3 업로드 시 필요한 파일 이름 속성 추가
+            audio_file.filename = file_name  #S3 업로드 시 필요한 파일 이름 속성 추가
             s3_url = upload_to_s3(audio_file, f"audio/tts_outputs/recording/{lang}/", file_name)
 
-        # 5️⃣ 임시 파일 삭제
+        #5️.임시 파일 삭제
         os.remove(temp_audio_path)
 
         return s3_url

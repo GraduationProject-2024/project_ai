@@ -5,14 +5,14 @@ def extract_stage_from_address(address):
     :return: 시도(STAGE1), 시군구(STAGE2)
     """
     try:
-        # 주소를 공백으로 분리
+        #주소를 공백으로 분리
         parts = address.split()
         if len(parts) < 2:
             raise ValueError("주소 형식이 잘못되었습니다. 최소 시도와 시군구가 필요합니다.")
         
-        # 시도와 시군구 추출
-        stage1 = parts[0]  # 첫 번째는 시도
-        stage2 = parts[1]  # 두 번째는 시군구
+        #시도와 시군구 추출
+        stage1 = parts[0]  #첫 번째는 시도
+        stage2 = parts[1]  #두 번째는 시군구
 
         return stage1, stage2
     except Exception as e:
@@ -20,14 +20,14 @@ def extract_stage_from_address(address):
         return None, None
     
 
-# API 호출 함수
+#API 호출 함수
 def call_api(url, params):
     import requests
 
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
-        return response.text  # XML 응답
+        return response.text  #XML 응답
     except requests.exceptions.RequestException as e:
         print(f"API 호출 오류: {e}")
         return None
@@ -52,19 +52,19 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
     :return: hpid 목록
     """
 
-    # Redis 캐싱 키 생성
+    #Redis 캐싱 키 생성
     redis_key = f"hospitals:{stage1}:{stage2}:{','.join(conditions) if conditions else 'all'}"
     print(f"생성된 Redis 키: {redis_key}")
     
-    # Redis에서 데이터 조회
+    #Redis에서 데이터 조회
     redis_client = get_redis_client()
     cached_data = redis_client.get(redis_key)
     print(f"저장된 hpid Redis 캐시 데이터: {cached_data}")
     if cached_data:
         print("Redis 캐시에서 병원 데이터 로드")
-        return json.loads(cached_data)  # Redis에서 JSON 디코딩
+        return json.loads(cached_data)  #Redis에서 JSON 디코딩
     
-    # Redis에 데이터가 없으면 API 호출
+    #Redis에 데이터가 없으면 API 호출
     print("Redis 캐시 없음, API 호출 진행")
     url = "http://apis.data.go.kr/B552657/ErmctInfoInqireService/getSrsillDissAceptncPosblInfoInqire"
     params = {
@@ -76,7 +76,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
         }
     hpid_list = []
 
-    # 첫 호출로 totalCount 확인
+    #첫 호출로 totalCount 확인
     data = call_api(url, params)
     if not data:
         return []
@@ -85,7 +85,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
     total_count = int(root.find("body/totalCount").text)
     total_pages = math.ceil(total_count / params["numOfRows"])
 
-    # 모든 페이지 데이터 수집
+    #모든 페이지 데이터 수집
     for page in range(1, total_pages + 1):
         params["pageNo"] = page
         page_data = call_api(url, params)
@@ -95,7 +95,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
         items = page_root.findall(".//item")
 
         for item in items:
-            # OR 조건으로 병원 필터링
+            #OR 조건으로 병원 필터링
             if not conditions or any(
                 item.find(cond) is not None and item.find(cond).text.strip() == "Y"
                 for cond in conditions
@@ -103,7 +103,7 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
                 hpid = item.find("hpid").text
                 hpid_list.append(hpid)
     
-    # 결과를 Redis에 저장
+    #결과를 Redis에 저장
     try:
         redis_client.setex(redis_key, 300, json.dumps(hpid_list))
     except redis.exceptions.RedisError as e:
@@ -140,9 +140,9 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
     }
     result = []
 
-    # Redis에서 데이터 확인 및 수집
+    #Redis에서 데이터 확인 및 수집
     for hpid in hpid_list:
-        redis_key = f"real_time_bed_info:{hpid}"  # Redis 키
+        redis_key = f"real_time_bed_info:{hpid}"  #Redis 키
         print(f"생성된 Redis 키: {redis_key}")
         
         cached_data = redis_client.get(redis_key)
@@ -150,10 +150,10 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
         
         if cached_data:
             print(f"Redis에서 {hpid} 데이터 로드")
-            result.append(json.loads(cached_data))  # 캐시된 데이터를 추가
+            result.append(json.loads(cached_data))  #캐시된 데이터를 추가
         else:
             print(f"Redis 캐시 없음, {hpid} 데이터 API 호출 진행")
-            # 첫 호출로 totalCount 확인
+            #첫 호출로 totalCount 확인
             data = call_api(url, params)
             if not data:
                 continue
@@ -161,10 +161,10 @@ def get_real_time_bed_info(stage1, stage2, hpid_list):
             root = ET.fromstring(data)
             items = root.findall(".//item")
             for item in items:
-                if item.find("hpid").text == hpid:  # 해당 병원의 데이터만 처리
-                    hospital_data = {child.tag: child.text for child in item}  # 모든 태그 그대로 매핑
+                if item.find("hpid").text == hpid:  #해당 병원의 데이터만 처리
+                    hospital_data = {child.tag: child.text for child in item}  #모든 태그 그대로 매핑
 
-                    # Redis에 데이터 저장 (5분 TTL 설정)
+                    #Redis에 데이터 저장 (5분 TTL 설정)
                     redis_client.setex(redis_key, 300, json.dumps(hospital_data))
                     result.append(hospital_data)
     

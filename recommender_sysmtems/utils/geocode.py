@@ -1,4 +1,4 @@
-# 사용자 주소 -> 좌표값으로 변환하는 geocode 함수
+#사용자 주소 -> 좌표값으로 변환하는 geocode 함수
 def address_to_coords(address):
     import requests
     import configparser
@@ -32,7 +32,7 @@ def address_to_coords(address):
     else:
         return {"error": f"에러 발생: {response.status_code}"}
 
-# 좌표값 -> 주소로 변환하는 geocode 함수
+#좌표값 -> 주소로 변환하는 geocode 함수
 def coords_to_address(lat, lon):
     import requests
     import configparser
