@@ -98,11 +98,8 @@ def handle_audio_chunk():
 
         #기존 detected_languages 유지
         detected_languages = set(session.get("detected_languages", []))
-        #('초기 detected_languages:', detected_languages)
         
         detected_languages.update(previous_languages)  #기존 언어 + 새로운 언어 추가
-        #print('초기 detected_languages 2:', detected_languages)
-
         translation_result = translate_text(transcript, previous_languages=list(detected_languages))
         translations = translation_result["translations"]
 
