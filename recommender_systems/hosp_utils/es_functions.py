@@ -59,7 +59,7 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
                 }
             }
         },
-        "size": 50  #최대 50개 결과 제한
+        "size": 30  #최대 30개 결과 제한
     }
 
     #병원 유형 필터 추가

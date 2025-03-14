@@ -24,3 +24,8 @@ vae_pretrained_model_ld16hd32.pth
 vae_pretrained_model_ld32hd64.pth
 vae_pretrained_model_ld64hd128.pth
 logstash_sync.bat
+vae_pretrained_model_ld16hd32_v2.pth
+sampled_hospitals.csv
+hospital_embeddings.npy
+vae_pretrain.ipynb
+vae_pretrain.py

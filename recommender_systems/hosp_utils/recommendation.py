@@ -188,7 +188,7 @@ class HospitalRecommender:
                 hospitals_df["department_match"] = hospitals_df["name"].apply(lambda name: department in name if name else False)
             
         #가중치 부여
-        hospitals_df["similarity"] += hospitals_df["department_match"] * 0.1  #가중치 0.1 추가
+        hospitals_df["similarity"] += hospitals_df["department_match"] * 0.001  #가중치 0.001 추가
 
         #suspected_disease를 리스트로 강제 변환
         if suspected_disease:
@@ -202,7 +202,7 @@ class HospitalRecommender:
             hospital_name_embeddings = self.embedding_model.encode(hospitals_df["name"].fillna("").tolist())
             disease_similarities = cosine_similarity([avg_disease_embedding], hospital_name_embeddings)[0]
 
-            hospitals_df["similarity"] += disease_similarities * 0.001  #가중치 추가
+            hospitals_df["similarity"] += disease_similarities * 0.0001  #가중치 추가
             
         #similarity 값이 1을 초과하지 않도록 제한
         hospitals_df["similarity"] = hospitals_df["similarity"].clip(upper=1.0)
