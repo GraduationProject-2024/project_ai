@@ -35,10 +35,10 @@ def recommend_hospital():
     secondary_hospital = data.get("secondary_hospital", False)
     tertiary_hospital = data.get("tertiary_hospital", False)
 
-    #Geocoding (주소 -> 위도, 경도)
+    #Geocoding(주소 -> 위도, 경도)
     geocoding_start_time = time.time()
 
-    data = request.json  #JSON 데이터 파싱
+    #data = request.json  #JSON 데이터 파싱
     
     #사용자 실제 현 위치
     user_lat = data.get('lat')
@@ -88,6 +88,8 @@ def recommend_hospital():
             )
         )
     travel_end_time = time.time()
+    print(f"🔹 Total Hospitals: {len(df)}")
+    print(f"🔹 Travel Time API Calls: {len(travel_infos)}")
     print(f"Travel Time Calculation: {travel_end_time - travel_start_time:.2f} seconds")
 
     #DataFrame에 반영
@@ -113,13 +115,14 @@ def recommend_hospital():
     recommend_start_time = time.time()
     recommender = HospitalRecommender()
     user_embedding = recommender.embed_user_profile(basic_info, health_info)
+
     hospital_embeddings = recommender.embed_hospital_data(df, suspected_disease=suspected_disease)
     
 
     #사전학습된 VAE 로드
     
     vae = VAE(input_dim=hospital_embeddings.shape[1], hidden_dim=32, latent_dim=16)
-    vae.load_state_dict(torch.load("vae_pretrained_model_ld16hd32.pth"))
+    vae.load_state_dict(torch.load("vae_pretrained_model_ld16hd32_v2.pth"))
     vae.eval()  #평가 모드 설정
     
     recommended_hospitals = recommender.recommend_hospitals(
@@ -133,6 +136,17 @@ def recommend_hospital():
     )
     recommend_end_time = time.time()
     print(f"Recommendation System Time: {recommend_end_time - recommend_start_time:.2f} seconds")
+
+    recommended_hospitals["total_travel_time_sec"] = (
+    recommended_hospitals["transit_travel_time_h"].fillna(0) * 3600 +
+    recommended_hospitals["transit_travel_time_m"].fillna(0) * 60 +
+    recommended_hospitals["transit_travel_time_s"].fillna(0)
+    )
+
+    #최종 정렬: 이동시간 정렬 후 similarity 정렬
+    recommended_hospitals = recommended_hospitals.sort_values(by=["total_travel_time_sec","similarity"], ascending=[True,False])
+    recommended_hospitals = recommended_hospitals.drop(columns=["total_travel_time_sec"])
+    recommended_hospitals = recommended_hospitals.reset_index(drop=True)
 
     #전체 종료 시간
     total_end_time = time.time()
@@ -167,7 +181,7 @@ def recommend_pharmacy():
         pharmacy_data = [hit['_source'] for hit in es_results['hits']['hits']]
         df = pd.DataFrame(pharmacy_data)
 
-        #열 이름 변경 (멀티쓰레딩 전에 처리)
+        #열 이름 변경(멀티쓰레딩 전에 처리)
         df.rename(columns={
             'wgs84lat': 'latitude',
             'wgs84lon': 'longitude',
