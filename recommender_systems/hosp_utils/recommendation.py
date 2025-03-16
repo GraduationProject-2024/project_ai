@@ -170,6 +170,7 @@ class HospitalRecommender:
             "transit_travel_time_s",
             "transit_travel_distance_km"
         ]].fillna(0).values
+        
         time_distance_embeddings = scaler.fit_transform(time_distance_features)
 
         #의심 질병 처리

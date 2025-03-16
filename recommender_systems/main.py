@@ -116,6 +116,13 @@ def recommend_hospital():
     recommender = HospitalRecommender()
     user_embedding = recommender.embed_user_profile(basic_info, health_info)
 
+    # NaN 값을 0으로 채우기
+    df.fillna({
+        "transit_travel_distance_km": 0,
+        "transit_travel_time_h": 0,
+        "transit_travel_time_m": 0,
+        "transit_travel_time_s": 0
+    }, inplace=True)
     hospital_embeddings = recommender.embed_hospital_data(df, suspected_disease=suspected_disease)
     
 
@@ -147,13 +154,6 @@ def recommend_hospital():
     recommended_hospitals = recommended_hospitals.sort_values(by=["total_travel_time_sec","similarity"], ascending=[True,False])
     recommended_hospitals = recommended_hospitals.drop(columns=["total_travel_time_sec"])
     recommended_hospitals = recommended_hospitals.reset_index(drop=True)
-
-    recommended_hospitals.fillna({
-        "transit_travel_distance_km": 0,
-        "transit_travel_time_h": 0,
-        "transit_travel_time_m": 0,
-        "transit_travel_time_s": 0
-    }, inplace=True)
 
     #전체 종료 시간
     total_end_time = time.time()
