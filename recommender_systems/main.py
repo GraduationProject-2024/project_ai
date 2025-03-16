@@ -148,6 +148,13 @@ def recommend_hospital():
     recommended_hospitals = recommended_hospitals.drop(columns=["total_travel_time_sec"])
     recommended_hospitals = recommended_hospitals.reset_index(drop=True)
 
+    recommended_hospitals.fillna({
+        "transit_travel_distance_km": 0,
+        "transit_travel_time_h": 0,
+        "transit_travel_time_m": 0,
+        "transit_travel_time_s": 0
+    }, inplace=True)
+
     #전체 종료 시간
     total_end_time = time.time()
     print(f"Total Processing Time: {total_end_time - total_start_time:.2f} seconds")
@@ -217,7 +224,12 @@ def recommend_pharmacy():
         )
 
         df.drop(columns=["travel_info"], inplace=True)
-
+        df.fillna({
+            "transit_travel_distance_km": 0,
+            "transit_travel_time_h": 0,
+            "transit_travel_time_m": 0,
+            "transit_travel_time_s": 0
+        }, inplace=True)
         #결과 반환
         return jsonify(df.to_dict(orient='records'))
     else:
@@ -303,7 +315,12 @@ def recommend_er():
                          "transit_travel_time_m", "transit_travel_time_s", "wgs84Lat", "wgs84Lon"]
     
     filtered_df = enriched_df[columns_to_return]
-
+    filtered_df.fillna({
+            "transit_travel_distance_km": 0,
+            "transit_travel_time_h": 0,
+            "transit_travel_time_m": 0,
+            "transit_travel_time_s": 0
+        }, inplace=True)
     #결과 반환
     return jsonify(filtered_df.to_dict(orient='records'))
 

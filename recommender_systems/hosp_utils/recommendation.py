@@ -229,4 +229,4 @@ class HospitalRecommender:
         #similarity 값이 1을 초과하지 않도록 제한
         hospitals_df["similarity"] = hospitals_df["similarity"].clip(upper=1.0)
 
-        return recommended
+        return hospitals_df #recommended
