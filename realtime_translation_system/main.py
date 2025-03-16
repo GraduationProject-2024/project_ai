@@ -194,13 +194,39 @@ def get_transcripts(session_id):
         return jsonify({"error": "Session not found"}), 404
     
     response_time = time.time() - start_time  #응답 시간 측정
+
     db["logs"].insert_one({
         "event": "get_transcripts",
         "session_id": session_id,
         "timestamp": datetime.now(),
         "response_time": response_time
     })
-    return jsonify({"session_id": session_id, "transcripts": session.get("transcripts", [])})
+    #return jsonify({"session_id": session_id, "transcripts": session.get("transcripts", [])})
+    # 첫 번째 transcript에서 등장한 언어들만 사용
+    transcripts = session.get("transcripts", [])
+
+    if not transcripts:
+        return jsonify({"session_id": session_id, "transcripts": {}})
+
+    first_languages = list(transcripts[0].get("translations", {}).keys())
+
+    # 언어별로 묶어서 정리
+    grouped_transcripts = {lang: [] for lang in first_languages}
+
+    for transcript in transcripts:
+        translations = transcript.get("translations", {})
+        for lang in first_languages:
+            if lang in translations:
+                grouped_transcripts[lang].append({
+                    "text": translations[lang]["text"],
+                    "tts_url": translations[lang]["tts_url"],
+                    "timestamp": transcript.get("timestamp")
+                })
+
+    return jsonify({
+        "session_id": session_id,
+        "grouped_transcripts": grouped_transcripts
+    })
 
 #유저별로 어떤 session 있는지 최신순으로 확인하는 용도
 @app.route("/get_sessions/<member_id>", methods=["GET"])
@@ -225,7 +251,6 @@ def get_sessions(member_id):
         "response_time": response_time,
         "session_count": len(session_list)  #유저의 세션 개수도 기록
     })
-    #return jsonify({"user_id": user_id, "sessions": session_list})
     return jsonify({"member_id": member_id, "sessions": session_list})
 
 #세션 기록 조회 및 요약 API
