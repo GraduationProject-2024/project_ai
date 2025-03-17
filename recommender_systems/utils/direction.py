@@ -41,7 +41,7 @@ def get_travel_time_and_distance(user_lat, user_lon, hospital_lat, hospital_lon)
     else:
         results["transit_travel_time_sec"] = None
         results["transit_travel_distance_km"] = None
-
+    #print(results)
     return results
 
 

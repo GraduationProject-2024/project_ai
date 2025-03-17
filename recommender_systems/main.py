@@ -4,7 +4,6 @@ from pharm_utils.es_functions_for_pharmacy import query_elasticsearch_pharmacy
 from hosp_utils.recommendation import HospitalRecommender
 #사전학습때문에 추가한 두 utils
 import torch
-from hosp_utils.vae import VAE
 
 from er_utils.apis import *
 from er_utils.direction_for_er import *
@@ -37,8 +36,6 @@ def recommend_hospital():
 
     #Geocoding(주소 -> 위도, 경도)
     geocoding_start_time = time.time()
-
-    #data = request.json  #JSON 데이터 파싱
     
     #사용자 실제 현 위치
     user_lat = data.get('lat')
@@ -88,8 +85,8 @@ def recommend_hospital():
             )
         )
     travel_end_time = time.time()
-    print(f"🔹 Total Hospitals: {len(df)}")
-    print(f"🔹 Travel Time API Calls: {len(travel_infos)}")
+    print(f"Total Hospitals: {len(df)}")
+    print(f"Travel Time API Calls: {len(travel_infos)}")
     print(f"Travel Time Calculation: {travel_end_time - travel_start_time:.2f} seconds")
 
     #DataFrame에 반영
@@ -114,25 +111,22 @@ def recommend_hospital():
     #추천 시스템
     recommend_start_time = time.time()
     recommender = HospitalRecommender()
-    user_embedding = recommender.embed_user_profile(basic_info, health_info)
-
-    hospital_embeddings = recommender.embed_hospital_data(df, suspected_disease=suspected_disease)
+    user_embedding = recommender.embed_user_profile(basic_info, health_info, suspected_disease=suspected_disease, department=department)
     
+    user_embedding_time = time.time()
+    print(f'user_embedding 만듦: {user_embedding_time - recommend_start_time:.2f}')
 
-    #사전학습된 VAE 로드
+    df_fillna_time = time.time()
+
+    hospital_embeddings = recommender.embed_hospital_data(df)
     
-    vae = VAE(input_dim=hospital_embeddings.shape[1], hidden_dim=32, latent_dim=16)
-    vae.load_state_dict(torch.load("vae_pretrained_model_ld16hd32_v2.pth"))
-    vae.eval()  #평가 모드 설정
+    hospital_embeddings_time = time.time()
+    print(f'hospital_embeddings 만듦: {hospital_embeddings_time - df_fillna_time:.2f}')
     
     recommended_hospitals = recommender.recommend_hospitals(
         user_embedding=user_embedding,
         hospital_embeddings=hospital_embeddings,
-        hospitals_df=df,
-        vae=vae,
-        department=department,
-        suspected_disease=suspected_disease,
-        use_vae=True
+        hospitals_df=df
     )
     recommend_end_time = time.time()
     print(f"Recommendation System Time: {recommend_end_time - recommend_start_time:.2f} seconds")
@@ -147,21 +141,14 @@ def recommend_hospital():
     recommended_hospitals = recommended_hospitals.sort_values(by=["total_travel_time_sec","similarity"], ascending=[True,False])
     recommended_hospitals = recommended_hospitals.drop(columns=["total_travel_time_sec"])
     recommended_hospitals = recommended_hospitals.reset_index(drop=True)
-
-    recommended_hospitals.fillna({
-        "transit_travel_distance_km": 0,
-        "transit_travel_time_h": 0,
-        "transit_travel_time_m": 0,
-        "transit_travel_time_s": 0
-    }, inplace=True)
-
+    
     #전체 종료 시간
     total_end_time = time.time()
     print(f"Total Processing Time: {total_end_time - total_start_time:.2f} seconds")
 
     #결과 반환
     return jsonify(recommended_hospitals.to_dict(orient="records"))
-
+    
 @app.route('/recommend_pharmacy', methods=['POST'])
 def recommend_pharmacy():
     data = request.json  #JSON 데이터 파싱
