@@ -79,7 +79,7 @@ class HospitalRecommender:
         ).tolist()
 
         #3. API 호출 최적화(중복된 병원명 제거→중복 API 호출 방지)
-        unique_sentences = list(set(hospital_sentences))  # 중복 제거
+        unique_sentences = list(set(hospital_sentences))  #중복 제거
         unique_embeddings = self.get_embedding(unique_sentences, batch_size=256)
         print(unique_embeddings.shape)
         #4️.병원명 기준으로 임베딩 매핑
@@ -91,7 +91,7 @@ class HospitalRecommender:
     
     from sklearn.metrics.pairwise import cosine_similarity
     def recommend_hospitals(self, user_embedding, hospital_embeddings, hospitals_df):
-        # 유사도 계산을 NumPy 벡터 연산으로 최적화
+        #유사도 계산을 NumPy 벡터 연산으로 최적화
         similarities = np.dot(hospital_embeddings, user_embedding) / (
             np.linalg.norm(hospital_embeddings, axis=1) * np.linalg.norm(user_embedding) + 1e-8
         )

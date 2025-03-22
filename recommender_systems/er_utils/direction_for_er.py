@@ -17,7 +17,6 @@ def get_travel_time_er(user_lat, user_lon, hospital_lat, hospital_lon):
 
     if response.status_code == 200:
         data = response.json()
-        print(data)
         if "routes" in data and data["routes"]:
             leg = data["routes"][0]["legs"][0]
             travel_time_sec = leg["duration"]["value"]
@@ -37,7 +36,6 @@ def calculate_travel_time_and_sort(enriched_df, user_lat, user_lon):
     import pandas as pd
 
     enriched_df = enriched_df.copy()
-    #print(enriched_df)
 
     def enrich_row_with_transit(row):
         if row["wgs84Lat"] and row["wgs84Lon"]:

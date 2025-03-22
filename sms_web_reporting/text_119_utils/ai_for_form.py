@@ -29,10 +29,10 @@ def generate_title_and_type(content):
     {content}
     ---
     """
-
+    
     try:
         response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
             messages=[{"role": "system", "content": prompt}],
             max_tokens=150
         )
@@ -81,7 +81,8 @@ def summarize_content(content):
     {content}
     ---
     """
-    
+    if not content or content.strip() == "":
+        return "요약된 신고 내용이 없습니다.", "No summarized report available."
     try:
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
