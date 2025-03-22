@@ -92,3 +92,48 @@ def get_medical_info(symptoms, language):
     except Exception as e:
         #예외 처리
         return {"error": str(e)}
+
+def romanize_korean_names(names: list[str]) -> dict:
+    """
+    여러 병원명 또는 약국명을 GPT를 사용해 음독(로마자 표기)으로 한 번에 변환
+    Args:
+        names (list[str]): 한국어 병원명 리스트
+    Returns:
+        dict[str, str]: {병원명: 음독 결과}
+    """
+    import openai
+    import json
+
+    try:
+        system_prompt = (
+            "You are a Korean language expert. Convert the following Korean medical facility names into Romanized Korean "
+            "using proper spacing. Always separate the medical suffix at the end like '병원', '의원', '약국', '한의원'.\n"
+            "Return the result as a JSON dictionary where each key is the original name and the value is the Romanized name. "
+            "No explanation, only valid JSON.\n"
+            "Example:\n"
+            "{\n"
+            "  \"강현우비뇨기과의원\": \"Kanghyunu Binyogigwa Uiwon\",\n"
+            "  \"해림온누리약국\": \"Haerim Onnuri Yakguk\"\n"
+            "}"
+        )
+
+        name_list_text = "\n".join(f"- {name}" for name in names)
+
+        user_prompt = f"Romanize the following names:\n{name_list_text}"
+
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2
+        )
+
+        result_text = response.choices[0].message.content.strip()
+        result = json.loads(result_text)
+        return result
+
+    except Exception as e:
+        print(f"Romanization Error: {e}")
+        return {}

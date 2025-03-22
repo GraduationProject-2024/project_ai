@@ -12,11 +12,12 @@ from er_utils.for_redis import *
 
 from utils.direction import calculate_travel_time_and_distance 
 from utils.geocode import address_to_coords, coords_to_address
+from utils.en_juso import get_english_address
 import pandas as pd
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from gpt_utils.prompting_gpt import get_medical_info
+from gpt_utils.prompting_gpt import get_medical_info, romanize_korean_names
 
 app = Flask(__name__)
 
@@ -27,6 +28,7 @@ def recommend_hospital():
 
     #요청 데이터 수신
     data = request.get_json()
+    print(f"[hospital] Request data: {data}", flush=True)
     basic_info = data.get("basic_info")
     health_info = data.get("health_info")
     department = data.get("department", "내과")  #기본값 설정
@@ -85,8 +87,6 @@ def recommend_hospital():
             )
         )
     travel_end_time = time.time()
-    print(f"Total Hospitals: {len(df)}")
-    print(f"Travel Time API Calls: {len(travel_infos)}")
     print(f"Travel Time Calculation: {travel_end_time - travel_start_time:.2f} seconds")
 
     #DataFrame에 반영
@@ -131,27 +131,61 @@ def recommend_hospital():
     recommend_end_time = time.time()
     print(f"Recommendation System Time: {recommend_end_time - recommend_start_time:.2f} seconds")
 
+    # recommended_hospitals["total_travel_time_sec"] = (
+    # recommended_hospitals["transit_travel_time_h"].fillna(0) * 3600 +
+    # recommended_hospitals["transit_travel_time_m"].fillna(0) * 60 +
+    # recommended_hospitals["transit_travel_time_s"].fillna(0)
+    # )
+    for col in ["transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
+        recommended_hospitals.loc[recommended_hospitals[col].isnull(), col] = 0
+
     recommended_hospitals["total_travel_time_sec"] = (
-    recommended_hospitals["transit_travel_time_h"].fillna(0) * 3600 +
-    recommended_hospitals["transit_travel_time_m"].fillna(0) * 60 +
-    recommended_hospitals["transit_travel_time_s"].fillna(0)
+        recommended_hospitals["transit_travel_time_h"] * 3600 +
+        recommended_hospitals["transit_travel_time_m"] * 60 +
+        recommended_hospitals["transit_travel_time_s"]
     )
+
 
     #최종 정렬: 이동시간 정렬 후 similarity 정렬
     recommended_hospitals = recommended_hospitals.sort_values(by=["total_travel_time_sec","similarity"], ascending=[True,False])
     recommended_hospitals = recommended_hospitals.drop(columns=["total_travel_time_sec"])
     recommended_hospitals = recommended_hospitals.reset_index(drop=True)
     
+    sorting_end_time = time.time()
+    print(f"Sorting Time: {sorting_end_time - recommend_end_time:.2f} seconds")
+
+    #언어가 한국어가 아닐 경우 영문 주소 변환
+    if basic_info.get("language").lower() != "ko":
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            recommended_hospitals["eng_address"] = recommended_hospitals["address"].apply(get_english_address)
+        recommended_hospitals = recommended_hospitals[recommended_hospitals["eng_address"].notnull()]
+        recommended_hospitals["address"] = recommended_hospitals["eng_address"]
+        recommended_hospitals.drop(columns=["eng_address"], inplace=True)
+    
+    translation_end_time = time.time()
+    print(f"Add Translation Time: {translation_end_time-sorting_end_time:.2f} seconds")
+    #병원명 음독 추가
+    names = recommended_hospitals["name"].tolist()
+    romanized_map = romanize_korean_names(names)
+
+    #매핑 적용
+    recommended_hospitals["name"] = recommended_hospitals["name"].map(
+        lambda x: f"{x} ({romanized_map.get(x)})" if romanized_map.get(x) else x
+    )
+
     #전체 종료 시간
     total_end_time = time.time()
+    print(f"Romanization Processing Time: {total_end_time - translation_end_time:.2f} seconds")
     print(f"Total Processing Time: {total_end_time - total_start_time:.2f} seconds")
 
+    
     #결과 반환
     return jsonify(recommended_hospitals.to_dict(orient="records"))
     
 @app.route('/recommend_pharmacy', methods=['POST'])
 def recommend_pharmacy():
     data = request.json  #JSON 데이터 파싱
+    print(f"[pharmacy] Request data: {data}", flush=True)
     user_lat = data.get('lat')
     user_lon = data.get('lon')
     basic_info = data.get("basic_info")
@@ -211,12 +245,31 @@ def recommend_pharmacy():
         )
 
         df.drop(columns=["travel_info"], inplace=True)
-        df.fillna({
-            "transit_travel_distance_km": 0,
-            "transit_travel_time_h": 0,
-            "transit_travel_time_m": 0,
-            "transit_travel_time_s": 0
-        }, inplace=True)
+        # df.fillna({
+        #     "transit_travel_distance_km": 0,
+        #     "transit_travel_time_h": 0,
+        #     "transit_travel_time_m": 0,
+        #     "transit_travel_time_s": 0
+        # }, inplace=True)
+        for col in ["transit_travel_distance_km", "transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
+            df.loc[df[col].isnull(), col] = 0
+
+        #언어가 한국어가 아닐 경우 영문 주소 변환
+        if basic_info.get("language").lower() != "ko":
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                df["eng_address"] = df["address"].apply(get_english_address)
+            df = df[df["eng_address"].notnull()] #변환이 안되는 데이터의 경우 그 row를 그냥 빼버리기
+            df["address"] = df["eng_address"]
+            df.drop(columns=["eng_address"], inplace=True)
+
+        #약국명 음독 추가
+        names = df["dutyname"].tolist()
+        romanized_map = romanize_korean_names(names)
+
+        df["dutyname"] = df["dutyname"].map(
+            lambda x: f"{x} ({romanized_map.get(x)})" if romanized_map.get(x) else x
+        )
+        
         #결과 반환
         return jsonify(df.to_dict(orient='records'))
     else:
@@ -225,6 +278,7 @@ def recommend_pharmacy():
 @app.route('/recommend_er', methods=['POST'])
 def recommend_er():
     data = request.json  #JSON 데이터 파싱
+    print(f"ER Request data: {data}", flush=True)
     conditions_korean = data.get('conditions', [])  #기본값 빈 리스트
 
     #설정 파일 로드
@@ -301,13 +355,30 @@ def recommend_er():
                          "transit_travel_distance_km", "transit_travel_time_h",
                          "transit_travel_time_m", "transit_travel_time_s", "wgs84Lat", "wgs84Lon"]
     
-    filtered_df = enriched_df[columns_to_return]
-    filtered_df.fillna({
-            "transit_travel_distance_km": 0,
-            "transit_travel_time_h": 0,
-            "transit_travel_time_m": 0,
-            "transit_travel_time_s": 0
-        }, inplace=True)
+    filtered_df = enriched_df[columns_to_return].copy()
+    # filtered_df.fillna({
+    #         "transit_travel_distance_km": 0,
+    #         "transit_travel_time_h": 0,
+    #         "transit_travel_time_m": 0,
+    #         "transit_travel_time_s": 0
+    #     }, inplace=True)
+    for col in ["transit_travel_distance_km", "transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
+        filtered_df.loc[filtered_df[col].isnull(), col] = 0
+    
+    #언어가 한국어가 아닐 경우 영문 주소 변환
+    if basic_info.get("language").lower() != "ko":
+        filtered_df["eng_address"] = filtered_df["dutyAddr"].apply(get_english_address)
+        filtered_df = filtered_df[filtered_df["eng_address"].notnull()]
+        filtered_df["dutyAddr"] = filtered_df["eng_address"]
+        filtered_df.drop(columns=["eng_address"], inplace=True)
+    #응급실 병원명 음독 추가
+    names = filtered_df["dutyName"].tolist()
+    romanized_map = romanize_korean_names(names)
+
+    filtered_df["dutyName"] = filtered_df["dutyName"].map(
+        lambda x: f"{x} ({romanized_map.get(x)})" if romanized_map.get(x) else x
+    )
+        
     #결과 반환
     return jsonify(filtered_df.to_dict(orient='records'))
 
@@ -317,6 +388,7 @@ def process_symptoms():
     try:
         #JSON 데이터 받기
         data = request.get_json()
+        print(f"Request data: {data}", flush=True)
         symptoms = data.get('symptoms', [])
         language = data.get('language')
 
@@ -346,6 +418,7 @@ def geocode_address_to_coords():
     """
     try:
         data = request.get_json()
+        print(f"Request data: {data}", flush=True)
         address = data.get('address')
 
         if not address:
@@ -377,6 +450,7 @@ def geocode_coords_to_address():
     """
     try:
         data = request.get_json()
+        print(f"Request data: {data}", flush=True)
         lat = data.get('lat')
         lon = data.get('lon')
 

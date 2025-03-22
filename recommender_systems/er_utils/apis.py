@@ -54,18 +54,18 @@ def get_hospitals_by_condition(stage1, stage2, conditions):
 
     #Redis 캐싱 키 생성
     redis_key = f"hospitals:{stage1}:{stage2}:{','.join(conditions) if conditions else 'all'}"
-    print(f"생성된 Redis 키: {redis_key}")
+    #print(f"생성된 Redis 키: {redis_key}")
     
     #Redis에서 데이터 조회
     redis_client = get_redis_client()
     cached_data = redis_client.get(redis_key)
-    print(f"저장된 hpid Redis 캐시 데이터: {cached_data}")
+    #print(f"저장된 hpid Redis 캐시 데이터: {cached_data}")
     if cached_data:
         print("Redis 캐시에서 병원 데이터 로드")
         return json.loads(cached_data)  #Redis에서 JSON 디코딩
     
     #Redis에 데이터가 없으면 API 호출
-    print("Redis 캐시 없음, API 호출 진행")
+    #print("Redis 캐시 없음, API 호출 진행")
     url = "http://apis.data.go.kr/B552657/ErmctInfoInqireService/getSrsillDissAceptncPosblInfoInqire"
     params = {
         "STAGE1": stage1,

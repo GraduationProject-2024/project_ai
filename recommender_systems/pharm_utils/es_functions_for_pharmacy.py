@@ -39,7 +39,7 @@ def query_elasticsearch_pharmacy(user_lat, user_lon):
                 }
             }
         ],
-        "size": 20  #최대 20개 결과 제한
+        "size": 15  #최대 15개 결과 제한
     }
 
     #Elasticsearch 검색 실행
