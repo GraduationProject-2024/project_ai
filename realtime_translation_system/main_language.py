@@ -15,11 +15,11 @@ DB_CONFIG = {
 
 #언어 매핑 (0~4 값 → 언어명)
 LANGUAGE_MAPPING = {
-    0: "Chinese",
-    1: "Vietnamese",
-    2: "Mongolian",
-    3: "English",
-    4: "Korean"
+    1: "Chinese",
+    2: "Vietnamese",
+    3: "Mongolian",
+    4: "English",
+    5: "Korean"
 }
 
 #main language 조회 함수

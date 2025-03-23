@@ -136,13 +136,17 @@ def fill_form():
 
     #password : 6~16 digits.
     password = request.form.get("119_gen_pw", "rSYNshcgPjqd")
-    location = clean_form_value(request.form.get("incident_location", ""))
+    location = clean_form_value(request.form.get("incident_location"))
+    print('location:', location, flush=True)
     if not location:
-        location = clean_form_value(request.form.get("address", "서울특별시 용산구 청파로47길 100"))
-        print('address로 처리')
-    
-    print('location:', location)
-    print(type(location))
+        location = clean_form_value(request.form.get("address"))
+        print('첫번째 if문 처리:', location, flush=True)
+    if not location:
+        location = "서울특별시 용산구 청파로47길 100"
+        print("기본 주소로 처리됨", location, flush=True)
+
+    print('최종 location', flush=True)
+    print(type(location), flush=True)
 
     #STT 처리: audio 파일이 있을 경우
     if "audio" in request.files:
@@ -155,9 +159,9 @@ def fill_form():
         content = clean_form_value(request.form.get("content", None))
         #content = request.form.get("content", "").strip()
 
-    # content가 없거나 비어 있을 경우 GPT 호출 생략
+    #content가 없거나 비어 있을 경우 GPT 호출 생략
     if content is None or content.strip().lower() in ("", "null", "none", 'null') or content == 'null':
-        # GPT 호출하지 않고 기본값 직접 지정
+        #GPT 호출하지 않고 기본값 직접 지정
         content_ko = "신고 내용이 없습니다."
         content_en = "No report content provided."
         processed_content = f"{content_en}({content_ko})"
@@ -235,7 +239,7 @@ def fill_form():
         driver.get("https://www.119.go.kr/Center119/registEn.do")
         #time.sleep(2)  #페이지 로드 대기
         wait = WebDriverWait(driver, 10)
-        # 이름 필드가 로드될 때까지 대기
+        #이름 필드가 로드될 때까지 대기
         wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="dsr_name"]')))
 
         #입력 필드 찾기 및 값 입력
@@ -244,14 +248,14 @@ def fill_form():
         driver.find_element(By.XPATH, '//*[@id="call_tel2"]').send_keys(parts[1])
         driver.find_element(By.XPATH, '//*[@id="call_tel3"]').send_keys(parts[2])
 
-        # 신고 유형 선택
+        #신고 유형 선택
         wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="dsrKndCdList"]')))
         select_element = Select(driver.find_element(By.XPATH, '//*[@id="dsrKndCdList"]'))
         for option in select_element.options:
             if option.text.strip().lower() == emergency_type.strip().lower():
                 select_element.select_by_visible_text(option.text.strip())
                 break
-        # 제목 입력
+        #제목 입력
         wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="title"]')))
         driver.find_element(By.XPATH, '//*[@id="title"]').send_keys(title)
         time.sleep(1)

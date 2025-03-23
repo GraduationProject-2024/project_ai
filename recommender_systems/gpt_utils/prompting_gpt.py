@@ -68,16 +68,16 @@ def get_medical_info(symptoms, language):
             "When provided with user symptoms, identify the most relevant department and translate it accurately. "
             "Respond in JSON format with the following keys:\n"
             "1) 'department': The most relevant medical department (translated into the user's language(as received in the 'Language' parameter) and Korean).\n"
-            "2) 'possible_conditions': A list of one or more possible diseases (translated into the user's language(as received in the 'Language' parameter) and Korean). Use precise and formal medical terminology for all translations. Only include conditions that are meaningfully relevant, avoiding unnecessary or redundant entries.When translating, ensure that terms like '염증' are not simplified or shortened (e.g., do not translate '염증' to '염'). Additionally, avoid translating a condition as '암' (cancer) unless the condition clearly and accurately corresponds to cancer in all contexts and languages. Similarly, ensure that conditions such as '결막염' (conjunctivitis) or other non-cancerous diseases are not mistranslated as cancer-related terms (e.g., Нүдний хавдар) or other incorrect meanings in any language.\n"
+            "2) 'possible_conditions': A list of one or more possible diseases (translated into the user's language(as received in the 'Language' parameter) and Korean). Use precise and formal medical terminology for all translations. Only include conditions that are meaningfully relevant, avoiding unnecessary or redundant entries.When translating, ensure that terms like '염증' are not simplified or shortened (e.g., do not translate '염증' to '염'). Additionally, avoid translating a condition as '암' (cancer) unless the condition clearly and accurately corresponds to cancer in all contexts and languages. Similarly, ensure that conditions such as '결막염' (conjunctivitis) or other non-cancerous diseases are not mistranslated as cancer-related terms (e.g., Нүдний хавдар) or other incorrect meanings in any language. These must be directly related to the provided 'macro_body_part' and 'micro_body_part'.\n"
             "3) 'questions_to_doctor': A list of questions the user should ask their doctor, considering the 'possible_conditions'. Provide up to five unique and meaningful questions, avoiding repetitive or semantically identical phrasing. Each question must be provided in both the user's language(as received in the 'Language' parameter) and Korean, focusing on the condition, symptoms, or treatment. Ensure that the questions are practical and directly related to the possible conditions.\n"
             "4) 'symptom_checklist': A checklist of detailed symptoms associated with each possible condition listed in 'possible_conditions'. Each entry in the checklist should correspond to a condition from 'possible_conditions' and include a list of up to five related symptom names translated into both Korean and the user's language(as received in the 'Language' parameter). Use precise and formal medical terms for symptom descriptions and avoid repetitive descriptions. Focus on symptoms that highlight the uniqueness or severity of the condition.\n"
-            "Respond in both the user's language(as received in the 'Language' parameter) and Korean above all. Ensure all translations use accurate and formal medical terms rather than colloquial expressions. Minimize repetitive sentences, and focus on providing fewer but more meaningful and accurate responses."
-        )
+            "Respond in both the user's language(as received in the 'Language' parameter) and Korean above all. Ensure all translations use accurate and formal medical terms rather than colloquial expressions. Minimize repetitive sentences, and focus on providing fewer but more meaningful and accurate responses." 
+            )
 
 
         #GPT API 호출
         response = openai.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"User symptoms: {combined_description}. Language: {language}"}

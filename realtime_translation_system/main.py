@@ -92,18 +92,13 @@ def handle_audio_chunk():
 
         #1️.Whisper로 음성 변환 (파일 경로 사용)
         transcript = transcribe_audio(temp_audio_path)  
+
         print("[DEBUG] transcript:", transcript)
 
         #2️.번역 실행
-        #기존 transcripts에서 사용된 언어 자동 감지
-        previous_languages = list(set(
-            [detect_language(t["original"]) for t in session.get("transcripts", [])]
-        ))
-
         #기존 detected_languages 유지
         detected_languages = set(session.get("detected_languages", []))
         
-        detected_languages.update(previous_languages)  #기존 언어 + 새로운 언어 추가
         translation_result = translate_text(transcript, previous_languages=list(detected_languages))
         translations = translation_result["translations"]
         print("[DEBUG] translations:", translations)
@@ -112,16 +107,23 @@ def handle_audio_chunk():
             translate_detected_languages = set(translation_result["detected_languages"])
             detected_languages.update(translate_detected_languages)  #기존 리스트에 추가
             print("[DEBUG] detected_languages:", detected_languages)
+        
 
-        #3️.TTS 생성 (빈 문자열 또는 None 방지)
-        for lang, text in translations.items():
-            if text and isinstance(text, str) and text.strip():  
+        #3️. 감지된 언어 중 누락된 것 추가 + TTS 포맷 통일
+        for lang in translation_result.get("detected_languages", []):
+            if lang not in translations:
+                translations[lang] = {"text": transcript}
+
+        #TTS 생성 포맷 보장
+        for lang in translations:
+            text = translations[lang].get("text", "") if isinstance(translations[lang], dict) else translations[lang]
+            if text and isinstance(text, str) and text.strip():
                 translations[lang] = {
                     "text": text,
-                    "tts_url": generate_tts(text, lang)
+                    #"tts_url": generate_tts(text, lang)
                 }
             else:
-                translations[lang] = {}  #MongoDB 저장 시 안전한 빈 JSON 처리
+                translations[lang] = {}
 
         #4️.MongoDB에 저장
         sessions_collection.update_one(
@@ -158,6 +160,8 @@ def handle_audio_chunk():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route("/transapi/end_session", methods=["POST"])
 def end_session():
     data = request.get_json()
@@ -188,50 +192,58 @@ def end_session():
 
     return jsonify({"message": "Session ended", "session_id": session_id}), 200
 
-
-#프론트에 transcripts 띄우는 용도
-@app.route("/transapi/get_transcripts/<session_id>", methods=["GET"])
-def get_transcripts(session_id):
-    start_time = time.time()  #API 요청 시작 시간
+#세션별 사용되는 언어 확인용
+@app.route("/transapi/get_languages/<session_id>", methods=["GET"])
+def get_detected_languages(session_id):
     session = sessions_collection.find_one({"_id": session_id})
-
     if not session:
         return jsonify({"error": "Session not found"}), 404
-    
-    response_time = time.time() - start_time  #응답 시간 측정
 
-    db["logs"].insert_one({
-        "event": "get_transcripts",
-        "session_id": session_id,
-        "timestamp": datetime.now(),
-        "response_time": response_time
-    })
-    #return jsonify({"session_id": session_id, "transcripts": session.get("transcripts", [])})
-    # 첫 번째 transcript에서 등장한 언어들만 사용
     transcripts = session.get("transcripts", [])
-
     if not transcripts:
-        return jsonify({"session_id": session_id, "transcripts": {}})
+        return jsonify({"session_id": session_id, "detected_languages": []})
 
-    first_languages = list(transcripts[0].get("translations", {}).keys())
-
-    # 언어별로 묶어서 정리
-    grouped_transcripts = {lang: [] for lang in first_languages}
-
-    for transcript in transcripts:
-        translations = transcript.get("translations", {})
-        for lang in first_languages:
-            if lang in translations:
-                grouped_transcripts[lang].append({
-                    "text": translations[lang]["text"],
-                    "tts_url": translations[lang]["tts_url"],
-                    "timestamp": transcript.get("timestamp")
-                })
+    first_translations = transcripts[0].get("translations", {})
+    first_languages = list(first_translations.keys())
 
     return jsonify({
         "session_id": session_id,
-        "grouped_transcripts": grouped_transcripts
-    })
+        "detected_languages": first_languages
+    }), 200
+
+@app.route("/transapi/get_transcripts/<session_id>/<language>", methods=["GET"])
+def get_transcripts_by_language(session_id, language):
+    session = sessions_collection.find_one({"_id": session_id})
+    if not session:
+        return jsonify({"error": "Session not found"}), 404
+
+    transcripts = session.get("transcripts", [])
+    if not transcripts:
+        return jsonify({"session_id": session_id, "language": language, "texts": ""})
+
+    #첫 번째 transcript의 언어들만 허용
+    first_languages = transcripts[0].get("translations", {}).keys()
+    if language not in first_languages:
+        return jsonify({
+            "session_id": session_id,
+            "language": language,
+            "texts": "",
+            "warning": "Language not available in first transcript"
+        }), 200
+
+    language_texts = [
+        t.get("translations", {}).get(language, {}).get("text", "")
+        for t in transcripts
+        if language in t.get("translations", {}) and t["translations"][language].get("text")
+    ]
+
+    joined_text = language_texts #", ".join(language_texts)
+
+    return jsonify({
+        "session_id": session_id,
+        "language": language,
+        "texts": joined_text
+    }), 200
 
 #유저별로 어떤 session 있는지 최신순으로 확인하는 용도
 @app.route("/transapi/get_sessions/<member_id>", methods=["GET"])

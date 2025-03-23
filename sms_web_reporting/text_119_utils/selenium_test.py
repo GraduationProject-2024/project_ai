@@ -11,7 +11,7 @@ def setup_driver():
     options.add_argument("--disable-gpu")
 
     #service = Service(ChromeDriverManager().install())
-    # chromedriver 실행 경로 설정
+    #chromedriver 실행 경로 설정
     service = Service("/usr/local/bin/chromedriver")
     driver = webdriver.Chrome(service=service, options=options)
     return driver

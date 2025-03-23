@@ -32,7 +32,7 @@ def translate_text(text, target_language="en"):
 
     try:
         response = openai.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": text}
@@ -43,4 +43,4 @@ def translate_text(text, target_language="en"):
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"[GPT translation error]: {e}")
-        return text  # fallback: 원본 반환
+        return text  #fallback: 원본 반환

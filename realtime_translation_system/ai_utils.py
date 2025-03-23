@@ -114,19 +114,19 @@ def detect_language(text, gpt_detected=None):
 
 def summarize_text(text):
     prompt = f"""
-    Summarize the following conversation based on the **Original text** from the transcripts.  
-    Ensure that the summary captures key points, emotions, and main ideas.  
-    Provide the summary in **both Korean and English**.
+        Summarize the following conversation based on the **Original text** from the transcripts.  
+        Ensure that the summary captures key points, emotions, and main ideas.  
+        Provide the summary in **both Korean and English**.
 
-    Original Text:
-    {text}
+        Original Text:
+        {text}
 
-    Respond strictly in the following JSON format **without additional text or explanations**:
-    {{
-    "summary_korean": "<summary_in_korean>",
-    "summary_english": "<summary_in_english>"
-    }}
-    """
+        Respond strictly in the following JSON format **without additional text or explanations**:
+        {{
+        "summary_korean": "<summary_in_korean>",
+        "summary_english": "<summary_in_english>"
+        }}
+        """
 
     response = openai.chat.completions.create(
         model="gpt-4", messages=[
@@ -144,10 +144,13 @@ def translate_text(text, previous_languages=[]):
     :param previous_languages: 세션에서 이전에 감지된 언어 리스트
     :return: 감지된 언어 리스트, 번역 결과 (한국어, 영어, 추가 감지 언어 포함)
     """
+    
     prompt = f"""
     Detect the language of the following text and return a JSON response **without any formatting such as markdown or code blocks**. 
-    Then, translate it into Korean and English. 
-    Additionally, translate it into all previously detected languages to maintain conversation consistency.
+    Then, translate it into Korean and English.  
+    Also, include the original text under the key of the detected language (e.g., "Chinese") even if it's not Korean or English.  
+    If there are any previously detected languages, also translate into those and include them in the 'translations' object.
+
     Previously detected languages: {', '.join(previous_languages) if previous_languages else 'None'}.
 
     Text: {text}
@@ -173,10 +176,8 @@ def translate_text(text, previous_languages=[]):
         "Chinese": "<translated_text>"
     }}
     }}
-
-    Ensure that all detected and previously used languages are included in the translations.
+    Do NOT skip the detected language in the 'translations' object. Always include it.
     """
-
 
     response = openai.chat.completions.create(
         model="gpt-4",
@@ -201,11 +202,20 @@ def translate_text(text, previous_languages=[]):
 
     except json.JSONDecodeError:
         print("GPT 응답을 JSON으로 변환할 수 없음.")
-        return {
-            "source_language": detect_language(text),  #GPT가 실패하면 직접 감지
-            "detected_languages": previous_languages,  #기존 언어 유지
-            "translations": {}  #빈 번역 반환
-        }
+        #한 번만 재시도
+        response_retry = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        try:
+            result = json.loads(response_retry.choices[0].message.content.strip())
+        except json.JSONDecodeError:
+            print("재시도 실패. fallback 적용.")
+            return {
+                "source_language": detect_language(text),
+                "detected_languages": previous_languages,
+                "translations": {}
+            }
 
     return {
         "source_language": source_language,

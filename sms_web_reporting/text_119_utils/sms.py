@@ -26,7 +26,7 @@ def send_messages(to="+8201051321887", message=None):
         
         ##메시지 생성 (MMS 지원)
         #msg_params = {
-        #    "body": message,
+        #   "body": message,
         #    "from_": TWILIO_PHONE_NUMBER,
         #    "to": to
         #}
