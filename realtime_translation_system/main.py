@@ -10,14 +10,17 @@ from main_language import get_main_language
 import time
 
 #Flask 및 WebSocket 설정
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app)
+
 db = get_database()
 sessions_collection = db["sessions"]
 
 #MongoDB 인덱스 추가(쿼리 성능 개선)
 sessions_collection.create_index([("created_at", -1)])
 
-@app.route("/start_session", methods=["POST"])
+@app.route("/transapi/start_session", methods=["POST"])
 def start_session():
     start_time = time.time()  #요청 시작 시간
 
@@ -63,7 +66,7 @@ def start_session():
         "detected_languages": list(initial_languages)
     }), 201
 
-@app.route("/audio_chunk", methods=["POST"])
+@app.route("/transapi/audio_chunk", methods=["POST"])
 def handle_audio_chunk():
     start_time = time.time()  #요청 시작 시간
     data = request.get_json()
@@ -89,6 +92,7 @@ def handle_audio_chunk():
 
         #1️.Whisper로 음성 변환 (파일 경로 사용)
         transcript = transcribe_audio(temp_audio_path)  
+        print("[DEBUG] transcript:", transcript)
 
         #2️.번역 실행
         #기존 transcripts에서 사용된 언어 자동 감지
@@ -102,12 +106,12 @@ def handle_audio_chunk():
         detected_languages.update(previous_languages)  #기존 언어 + 새로운 언어 추가
         translation_result = translate_text(transcript, previous_languages=list(detected_languages))
         translations = translation_result["translations"]
-
+        print("[DEBUG] translations:", translations)
         #translate_text에서 감지한 언어 추가
         if "detected_languages" in translation_result:
             translate_detected_languages = set(translation_result["detected_languages"])
             detected_languages.update(translate_detected_languages)  #기존 리스트에 추가
-
+            print("[DEBUG] detected_languages:", detected_languages)
 
         #3️.TTS 생성 (빈 문자열 또는 None 방지)
         for lang, text in translations.items():
@@ -134,6 +138,7 @@ def handle_audio_chunk():
         os.remove(temp_audio_path)
 
         response_time = time.time() - start_time  #API 응답 시간 측정
+        print("[DEBUG] response_time:", time.time() - start_time)
         db["logs"].insert_one({
             "event": "audio_chunk",
             "session_id": session_id,
@@ -153,7 +158,7 @@ def handle_audio_chunk():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/end_session", methods=["POST"])
+@app.route("/transapi/end_session", methods=["POST"])
 def end_session():
     data = request.get_json()
     session_id = data.get("session_id")
@@ -185,7 +190,7 @@ def end_session():
 
 
 #프론트에 transcripts 띄우는 용도
-@app.route("/get_transcripts/<session_id>", methods=["GET"])
+@app.route("/transapi/get_transcripts/<session_id>", methods=["GET"])
 def get_transcripts(session_id):
     start_time = time.time()  #API 요청 시작 시간
     session = sessions_collection.find_one({"_id": session_id})
@@ -229,7 +234,7 @@ def get_transcripts(session_id):
     })
 
 #유저별로 어떤 session 있는지 최신순으로 확인하는 용도
-@app.route("/get_sessions/<member_id>", methods=["GET"])
+@app.route("/transapi/get_sessions/<member_id>", methods=["GET"])
 def get_sessions(member_id):
     start_time = time.time()  #요청 시작 시간
     #해당 사용자의 모든 세션을 최신순으로 가져오기
@@ -256,7 +261,7 @@ def get_sessions(member_id):
 #세션 기록 조회 및 요약 API
 import json
 
-@app.route("/session_summary/<session_id>", methods=["GET"])
+@app.route("/transapi/session_summary/<session_id>", methods=["GET"])
 def get_session_summary(session_id):
     start_time = time.time()  #요청 시작 시간
     session = sessions_collection.find_one({"_id": session_id})

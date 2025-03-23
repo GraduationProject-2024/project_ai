@@ -5,3 +5,4 @@ boto3
 pytz
 langdetect
 pymysql
+flask-cors
