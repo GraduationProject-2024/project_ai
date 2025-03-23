@@ -16,10 +16,12 @@ from text_119_utils.ai_for_form import *
 from text_119_utils.pw_gen import *
 
 from text_119_utils.cleaning import clean_form_value
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app)
 
 #119 신고용 비밀번호 만들기
-@app.route("/gen_119_pw", methods=["GET"])
+@app.route("/reportapi/gen_119_pw", methods=["GET"])
 def generate_password_api():
     """비밀번호 생성 API"""
     used_passwords = get_used_passwords()  #MySQL에서 used_passwords 조회
@@ -28,7 +30,7 @@ def generate_password_api():
 
 
 #119 text reporting
-@app.route('/send_messages', methods=['POST'])
+@app.route('/reportapi/send_messages', methods=['POST'])
 def send_messages_route():
     """
     SMS 신고 전송 API (외국어 입력도 지원, 이미지 첨부 가능)
@@ -72,7 +74,7 @@ def send_messages_route():
     return jsonify(result)
 
 
-@app.route('/transcribe', methods=['POST'])
+@app.route('/reportapi/transcribe', methods=['POST'])
 def transcribe():
     """
     업로드된 음성 파일을 STT로 변환 후 번역 (옵션)
@@ -115,7 +117,7 @@ def transcribe():
 
 #웹으로 신고
 #postman에서 form-data 형태로 POST
-@app.route("/fill_form", methods=["POST"])
+@app.route("/reportapi/fill_form", methods=["POST"])
 def fill_form():
     print("===== 프론트에서 받은 요청 =====", flush=True)
     print("form:", request.form, flush=True)
@@ -193,7 +195,7 @@ def fill_form():
     else:
         emergency_type = raw_emergency_type.strip()
 
-    title = clean_form_value(request.form.get("title", default_title))
+    title = clean_form_value(request.form.get("title")) or default_title
 
 
     #이미지 업로드 처리:3개까지 가능 (optional)
@@ -307,7 +309,7 @@ def fill_form():
 
 
 
-@app.route('/translate', methods=['POST'])
+@app.route('/reportapi/translate', methods=['POST'])
 def translate():
     """
     텍스트 번역 API
@@ -332,7 +334,7 @@ def translate():
     translated_text = translate_and_filter_text(text, target_language)
     return jsonify({"status": "success", "translated_text": translated_text})
 
-@app.route('/tts', methods=['POST'])
+@app.route('/reportapi/tts', methods=['POST'])
 def tts():
     """
     텍스트를 음성으로 변환하는 API (TTS)

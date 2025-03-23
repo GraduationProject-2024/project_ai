@@ -18,6 +18,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from gpt_utils.prompting_gpt import get_medical_info, romanize_korean_names
+from gpt_utils.prompting_gpt_for_profile import translate_text
 
 app = Flask(__name__)
 
@@ -131,11 +132,6 @@ def recommend_hospital():
     recommend_end_time = time.time()
     print(f"Recommendation System Time: {recommend_end_time - recommend_start_time:.2f} seconds")
 
-    # recommended_hospitals["total_travel_time_sec"] = (
-    # recommended_hospitals["transit_travel_time_h"].fillna(0) * 3600 +
-    # recommended_hospitals["transit_travel_time_m"].fillna(0) * 60 +
-    # recommended_hospitals["transit_travel_time_s"].fillna(0)
-    # )
     for col in ["transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
         recommended_hospitals.loc[recommended_hospitals[col].isnull(), col] = 0
 
@@ -245,12 +241,6 @@ def recommend_pharmacy():
         )
 
         df.drop(columns=["travel_info"], inplace=True)
-        # df.fillna({
-        #     "transit_travel_distance_km": 0,
-        #     "transit_travel_time_h": 0,
-        #     "transit_travel_time_m": 0,
-        #     "transit_travel_time_s": 0
-        # }, inplace=True)
         for col in ["transit_travel_distance_km", "transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
             df.loc[df[col].isnull(), col] = 0
 
@@ -356,12 +346,6 @@ def recommend_er():
                          "transit_travel_time_m", "transit_travel_time_s", "wgs84Lat", "wgs84Lon"]
     
     filtered_df = enriched_df[columns_to_return].copy()
-    # filtered_df.fillna({
-    #         "transit_travel_distance_km": 0,
-    #         "transit_travel_time_h": 0,
-    #         "transit_travel_time_m": 0,
-    #         "transit_travel_time_s": 0
-    #     }, inplace=True)
     for col in ["transit_travel_distance_km", "transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
         filtered_df.loc[filtered_df[col].isnull(), col] = 0
     
@@ -397,6 +381,7 @@ def process_symptoms():
 
         #GPT API 호출
         result = get_medical_info(symptoms, language)
+        print(f"report result:{result}", flush=True)
         return jsonify(result), 200
 
     except Exception as e:
@@ -463,6 +448,76 @@ def geocode_coords_to_address():
             return jsonify({"error": address["error"]}), 400
 
         return jsonify(address), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/translate/basic_info', methods=['POST'])
+def translate_basic_info():
+    """
+    basic_info.address만 영어로 번역
+    입력: { "language": "EN", "basic_info": { ... } }
+    출력: 동일 구조 + address만 영어로 변환
+    """
+    try:
+        data = request.get_json()
+        basic_info = data.get("basic_info", {})
+        address = basic_info.get("address")
+
+        if not address:
+            return jsonify({"error": "'address'는 basic_info 안에 있어야 합니다."}), 400
+
+        translated_address = get_english_address(address)
+        if not translated_address:
+            return jsonify({"error": "주소 번역 실패"}), 500
+
+        basic_info["address"] = translated_address
+        return jsonify({
+            "language": data.get("language", "EN"),
+            "basic_info": basic_info
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/translate/health_info', methods=['POST'])
+def translate_health_info():
+    """
+    health_info의 value만 GPT로 번역
+    입력: { "language": "en", "health_info": { ... } }
+    출력: 동일 구조 + value만 번역됨
+    """
+    try:
+        data = request.get_json()
+        target_language = data.get("language", "en")
+        health_info = data.get("health_info", {})
+
+        translated_info = {
+            key: translate_text(val, target_language)
+            for key, val in health_info.items()
+        }
+
+        return jsonify({
+            "language": target_language,
+            "health_info": translated_info
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/translate/nickname', methods=['POST'])
+def translate_nickname():
+    """
+    nickname을 GPT로 번역
+    """
+    try:
+        data = request.get_json()
+        nickname = data.get("nickname")
+        target_language = data.get("language", "en")
+
+        if not nickname:
+            return jsonify({"error": "'nickname' 필드는 필수입니다."}), 400
+
+        translated = translate_text(nickname, target_language)
+        return jsonify({"nickname": translated}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
