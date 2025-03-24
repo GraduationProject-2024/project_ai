@@ -1,5 +1,4 @@
-#-*- coding: utf-8 -*-
-
+from .department_mapping import get_department_translation
 import openai
 import json
 import configparser
@@ -7,91 +6,198 @@ config = configparser.ConfigParser()
 config.read('keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
 
-def get_medical_info(symptoms, language):
-    """
-    사용자의 증상 정보를 기반으로 GPT를 호출하여 진료과, 의심되는 질병 정보, 의사에게 할 질문 리스트를 JSON으로 반환
-    
-    Args:
-        symptoms (dict): 사용자의 증상 정보. 다음과 같은 키를 포함:
-            - 'macro_body_part': 거시적 신체 부위
-            - 'micro_body_part': 미시적 신체 부위
-            - 'symptom_details': 증상 정보 (빈도, 강도, 고통의 지속시간, 증상발현 후 지난 시간)
-            - 'additional_info': 기타사항 (S3 URL 등)
-        language (str): 사용자 언어 코드 (e.g., 'en', 'ko', 'vi', 'zh', 'zh-Hant', 'mn')
-    
-    Returns:
-        dict: 진료과, 의심되는 질병, 의사에게 할 질문 리스트가 포함된 JSON 객체
-    """
-    try:
-        #증상 정보를 문자열로 변환
-        symptom_descriptions = []
-        for symptom in symptoms:
-            symptom_descriptions.append(
-                f"Macro body part: {symptom.get('macro_body_part', 'N/A')}, "
-                f"Micro body part: {symptom.get('micro_body_part', 'N/A')}, "
-                f"Details: {symptom.get('symptom_details', 'N/A')}, "
-                f"Additional info: {symptom.get('additional_info', 'N/A')}"
-            )
+def get_department(symptoms, language):
+    combined_description = ""
+    for symptom in symptoms:
+        macro = ", ".join(symptom.get('macro_body_parts', []))
+        micro = ", ".join(symptom.get('micro_body_parts', []))
+        combined_description += f"Macro: {macro}, Micro: {micro} | "
 
-        #모든 증상 정보를 하나의 설명으로 결합
-        combined_description = " | ".join(symptom_descriptions)
+    prompt = (
+        "You are a multilingual medical assistant.\n"
+        "Based ONLY on macro and micro body parts, return the most relevant Korean department (진료과) name.\n"
+        "Ignore any other symptom details. Do NOT guess unrelated departments.\n"
+        "Choose only from the following Korean departments:\n"
+        "- 가정의학과\n"
+        "- 내과\n"
+        "- 마취통증의학과\n"
+        "- 비뇨의학과\n"
+        "- 산부인과\n"
+        "- 성형외과\n"
+        "- 소아청소년과\n"
+        "- 신경과\n"
+        "- 신경외과\n"
+        "- 심장혈관흉부외과\n"
+        "- 안과\n"
+        "- 영상의학과\n"
+        "- 예방의학과\n"
+        "- 외과\n"
+        "- 이비인후과\n"
+        "- 재활의학과\n"
+        "- 정신건강의학과\n"
+        "- 정형외과\n"
+        "- 치의과\n"
+        "- 피부과\n"
+        "- 한방과\n\n"
+        "Return JSON only: { \"department_ko\": \"정형외과\" }"
+    )
 
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": f"Symptoms: {combined_description}\nLanguage: {language}"}
+    ]
+
+    response = openai.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=messages,
+        temperature=0.3
+    )
+
+    result = json.loads(response.choices[0].message.content.strip())
+    dept_ko = result["department_ko"]
+
+    return get_department_translation(dept_ko, language)
+
+# def get_department(symptoms, language):
+#     import openai, json
+    
+#     combined_description = ""
+#     for symptom in symptoms:
+#         macro = ", ".join(symptom.get('macro_body_parts', []))
+#         micro = ", ".join(symptom.get('micro_body_parts', []))
+#         combined_description += f"Macro: {macro}, Micro: {micro} | "
+
+#     prompt = (
+#         "You are a multilingual medical assistant. You will receive a description of user symptoms, including:\n"
+#         "- macro_body_parts (e.g., 무릎, 다리)\n"
+#         "- micro_body_parts (e.g., 정강이, 발목)\n"
+#         "- symptom_details (used ONLY to assess urgency, NOT to guess unrelated conditions)\n\n"
+
+#         "Your job is to identify the most medically relevant department (진료과) **only** from the list below. "
+#         "The department must be directly related to the macro/micro body parts mentioned. "
+#         "**Do not use symptom_details to infer unrelated conditions**. "
+#         "**Do not suggest any department that is unrelated to the body parts.** For example, if the symptoms mention only '무릎' or '발', you should NOT return '내과'.\n\n"
+
+#         "Below is a list of valid medical departments with accurate names in Korean(English, Vietnamese, Chinese, Chinese-Hant):"
+#         "- 가정의학과('Family Medicine', 'y học gia đình', '家庭医学科', '家庭醫學')\n"
+#         "- 내과('Internal Medicine', 'khoa nội, bệnh viện nội khoa', '内科', '內科')\n"
+#         "- 마취통증의학과('Anaesthesiology', 'khoa chứng đau gây mê', '麻醉疼痛医学科', '麻醉痛医学科')\n"
+#         "- 비뇨의학과('Urology', 'khoa tiết niệu', '泌尿医学系', '泌尿学系')\n"
+#         "- 산부인과('Obstetrics and Gynecology', 'khoa phụ sản, bệnh viện phụ sản', '妇产科', '婦產科')\n"
+#         "- 성형외과('Plastic&Reconstructive Surgery', 'Phẫu thuật tạo hình và tái tạo', '整形及重建外科', '整形及重建外科')\n"
+#         "- 소아청소년과('Pediatrics', 'khoa nhi', '儿童青少年科', '小儿青少年科')\n"
+#         "- 신경과('Neurology', 'Thần kinh học', '神经科', '神经科')\n"
+#         "- 신경외과('Neurological Surgery', 'khoa ngoại thần kinh, bệnh viện ngoại khoa', '神经外科', '神经外科')\n"
+#         "- 심장혈관흉부외과('Thoracic Surgery', 'khoa ngoại khoa tim mạch', '心血管胸外科', '心血管胸外科')\n"
+#         "- 안과('Ophthalmology', 'nhãn khoa, bệnh viện mắt', '眼科', '眼科')\n"
+#         "- 영상의학과('Imaging Radiology', 'ngành X-quang', '影像医学科', '影像放射學')\n"
+#         "- 예방의학과('Preventive Medicine', 'Y học dự phòng', '预防医学科', '預防醫學')\n"
+#         "- 외과('General Surgery', 'khoa ngoại, bệnh viện ngoại khoa', '外科', '一般外科')\n"
+#         "- 이비인후과('Otolaryngology', 'khoa tai mũi họng, bệnh viện tai mũi họng', '耳鼻喉科', '耳鼻喉科')\n"
+#         "- 재활의학과('Rehabilitation Medicine', 'thuốc phục hồi chức năng', '康复医学系', '康复医法系')\n"
+#         "- 정신건강의학과('Psychiatry', 'Tâm thần học', '心理健康医学系', '精神健康医学系')\n"
+#         "- 정형외과('Orthopedic Surgery', 'khoa ngoại chỉnh hình, bệnh viện chấn thương chỉnh hình', '骨科手术', '骨科手術')\n"
+#         "- 치의과('Dentistry', 'nha khoa, bệnh viện nha khoa', '牙科', '牙科')\n"
+#         "- 피부과('Dermatology', 'khoa da liễu, bệnh viện da liễu', '皮肤科', '皮膚科')\n"
+#         "- 한방과('Oriental Medicine', 'đông y', '东方医学', '東方醫學')\n"
         
-        #프롬프트 설정
-        prompt = (
-            "You are a multilingual medical assistant specializing in professional medical terminology. Your role is to provide accurate translations of medical-related information for individuals who need assistance navigating healthcare systems. Specifically, you help foreigners living in Korea and Koreans living abroad by translating medical information and terms in a way that is both culturally and linguistically appropriate. Ensure that all translations use formal medical terminology and avoid colloquial or overly simplified language."
-            "When translating symptoms into Korean, ensure the following translations are used:\n"
-            "- 'swelling' should be translated as '붓기' (not '부기').\n"
-            "- there is no '식도통'. do not use words not in the korean dictionary.\n"
-            "Below is a list of valid medical departments with accurate names in Korean(English, Mongolian, Vietnamese, Chinese, Chinese-Hant):"
-            "- 가정의학과('Family Medicine', 'Гэр Бүлийн Анагаах Ухаан', 'y học gia đình', '家庭医学科', '家庭醫學')\n"
-            "- 내과('Internal Medicine', 'Дотоод Анагаах Ухаан', 'khoa nội, bệnh viện nội khoa', '内科', '內科')\n"
-            "- 마취통증의학과('Anaesthesiology', 'Анестезиологи', 'khoa chứng đau gây mê', '麻醉疼痛医学科', '麻醉痛医学科')\n"
-            "- 비뇨의학과('Urology', 'Урологи', 'khoa tiết niệu', '泌尿医学系', '泌尿学系')\n"
-            "- 산부인과('Obstetrics and Gynecology', 'Эх барих, эмэгтэйчүүдийн', 'khoa phụ sản, bệnh viện phụ sản', '妇产科', '婦產科')\n"
-            "- 성형외과('Plastic&Reconstructive Surgery', 'Хуванцар Ба Сэргээн Засах Мэс Засал', 'Phẫu thuật tạo hình và tái tạo', '整形及重建外科', '整形及重建外科')\n"
-            "- 소아청소년과('Pediatrics','хүүхдийн эмч', 'khoa nhi', '儿童青少年科', '小儿青少年科')\n"
-            "- 신경과('Neurology', 'Мэдрэл судлал', 'Thần kinh học', '神经科', '神经科')\n"
-            "- 신경외과('Neurological Surgery', 'Мэдрэлийн Мэс Засал', 'khoa ngoại thần kinh, bệnh viện ngoại khoa', '神经外科', '神经外科')\n"
-            "- 심장혈관흉부외과('Thoracic Surgery', 'Цээжний Мэс Засал', 'khoa ngoại khoa tim mạch', '心血管胸外科', '心血管胸外科')\n"
-            "- 안과('Ophthalmology', 'нүдний эмч', 'nhãn khoa, bệnh viện mắt', '眼科', '眼科')\n"
-            "- 영상의학과('Imaging Radiology', 'Дүрслэл Радиологи', 'ngành X-quang', '影像医学科', '影像放射學')\n"
-            "- 예방의학과('Preventive Medicine', 'Урьдчилан Сэргийлэх Эм', 'Y học dự phòng', '预防医学科', '預防醫學')\n"
-            "- 외과('General Surgery', 'Ерөнхий Мэс Засал', 'khoa ngoại, bệnh viện ngoại khoa', '外科', '一般外科')\n"
-            "- 이비인후과('Otolaryngology', 'Чих хамар хоолой судлал', 'khoa tai mũi họng, bệnh viện tai mũi họng', '耳鼻喉科', '耳鼻喉科')\n"
-            "- 재활의학과('Rehabilitation Medicine', 'Нөхөн Сэргээх Эм', 'thuốc phục hồi chức năng', '康复医学系', '康复医法系')\n"
-            "- 정신건강의학과('Psychiatry', 'Сэтгэцийн эмгэг', 'Tâm thần học', '心理健康医学系', '精神健康医学系')\n"
-            "- 정형외과('Orthopedic Surgery', 'Ортопедийн Мэс Засал', 'khoa ngoại chỉnh hình, bệnh viện chấn thương chỉnh hình', '骨科手术', '骨科手術')\n"
-            "- 치의과('Dentistry', 'Шүдний эмч', 'nha khoa, bệnh viện nha khoa', '牙科', '牙科')\n"
-            "- 피부과('Dermatology', 'Арьс судлал', 'khoa da liễu, bệnh viện da liễu', '皮肤科', '皮膚科')\n"
-            "- 한방과('Oriental Medicine', 'Дорно Дахины Анагаах Ухаан', 'đông y', '东方医学', '東方醫學')\n"
-            "When provided with user symptoms, identify the most relevant department and translate it accurately. "
-            "Respond in JSON format with the following keys:\n"
-            "1) 'department': The most relevant medical department (translated into the user's language(as received in the 'Language' parameter) and Korean).\n"
-            "2) 'possible_conditions': A list of one or more possible diseases (translated into the user's language(as received in the 'Language' parameter) and Korean). Use precise and formal medical terminology for all translations. Only include conditions that are meaningfully relevant, avoiding unnecessary or redundant entries.When translating, ensure that terms like '염증' are not simplified or shortened (e.g., do not translate '염증' to '염'). Additionally, avoid translating a condition as '암' (cancer) unless the condition clearly and accurately corresponds to cancer in all contexts and languages. Similarly, ensure that conditions such as '결막염' (conjunctivitis) or other non-cancerous diseases are not mistranslated as cancer-related terms (e.g., Нүдний хавдар) or other incorrect meanings in any language. These must be directly related to the provided 'macro_body_part' and 'micro_body_part'.\n"
-            "3) 'questions_to_doctor': A list of questions the user should ask their doctor, considering the 'possible_conditions'. Provide up to five unique and meaningful questions, avoiding repetitive or semantically identical phrasing. Each question must be provided in both the user's language(as received in the 'Language' parameter) and Korean, focusing on the condition, symptoms, or treatment. Ensure that the questions are practical and directly related to the possible conditions.\n"
-            "4) 'symptom_checklist': A checklist of detailed symptoms associated with each possible condition listed in 'possible_conditions'. Each entry in the checklist should correspond to a condition from 'possible_conditions' and include a list of up to five related symptom names translated into both Korean and the user's language(as received in the 'Language' parameter). Use precise and formal medical terms for symptom descriptions and avoid repetitive descriptions. Focus on symptoms that highlight the uniqueness or severity of the condition.\n"
-            "Respond in both the user's language(as received in the 'Language' parameter) and Korean above all. Ensure all translations use accurate and formal medical terms rather than colloquial expressions. Minimize repetitive sentences, and focus on providing fewer but more meaningful and accurate responses." 
-            )
+#         "Return ONLY ONE department, as a JSON object with language-specific keys.\n"
+#         "Example: { \"department\": { \"KO\": \"정형외과\", \"VI\": \"khoa ngoại chỉnh hình\" } }\n\n"
+#         "Example: { \"department\": { \"KO\": \"이비인후과\", \"EN\": \"Otolaryngology\" } }\n\n"
+#         "- If the user's language is \"KO\", return only the 'KO' key.\n"
+#         "- Otherwise, return both 'KO' and the user's language key (e.g., 'EN', 'VI', 'ZH').\n\n"
+#         "Respond ONLY with valid JSON. No explanation. No formatting."
+#         )
+
+#     messages = [
+#         {"role": "system", "content": prompt},
+#         {
+#             "role": "user", 
+#             "content": f"Symptoms: {combined_description}\nLanguage: {language}"
+#         }
+#     ]
+
+#     response = openai.chat.completions.create(
+#         model="gpt-4",
+#         messages=messages,
+#         temperature=0.3
+#     )
+#     result = response.choices[0].message.content
+#     return json.loads(result)["department"]
 
 
-        #GPT API 호출
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": f"User symptoms: {combined_description}. Language: {language}"}
-            ],
-            temperature=0.4
-        )
+def get_condition_details(symptoms, language, department):
+    import openai, json
 
-        #응답 파싱
-        result = response.choices[0].message.content
-        return json.loads(result)
+    """
+    department (str): 이미 get_department에서 받은 국문 진료과. ex) "정형외과"
+    returns: {
+       "possible_conditions": [...],
+       "questions_to_doctor": [...],
+       "symptom_checklist": {...}
+    }
+    """
 
-    except Exception as e:
-        #예외 처리
-        return {"error": str(e)}
+    # 증상 문자열 합치기(간단 예)
+    symptom_description = ""
+    for s in symptoms:
+        macro = ", ".join(s.get('macro_body_parts', []))
+        micro = ", ".join(s.get('micro_body_parts', []))
+        detail = s.get('symptom_details', {})
+        symptom_description += f"macro: {macro}, micro: {micro}, details: {detail} | "
+
+    # 프롬프트: department는 이미 정해졌으니 이걸 참고하라고 안내
+    prompt = (
+        "You are a multilingual medical assistant. The user symptoms and department have already been established.\n"
+        f"Department: {department}\n\n"
+
+        "Your task is to return the following fields in JSON format, with proper multilingual formatting:\n\n"
+
+        "1) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'})\n"
+        "2) 'questions_to_doctor': A list of up to five practical and specific questions that the user (as a patient) should ask a doctor during consultation. Each question must be an object with keys 'KO' and the user's language (e.g., 'VI').\n"
+        "   - Each question must reflect the user's point of view (not the doctor's) and should help them understand the condition, treatment, risks, or follow-up steps. "
+        "   - Questions should begin with phrases like “Do I need...”, “What should I...”, “Is it normal that...”, “Should I avoid...”, etc. "
+        "   - Do NOT include questions that sound like something the doctor would say or explain unprompted. These are patient questions only.\n"
+        "3) 'symptom_checklist': For each condition (use Korean name as the key), provide:\n"
+        "   - 'symptoms': a list of symptoms with translations, each as a dict like {'KO': '무릎 통증', 'VI': 'Đau đầu gối'}\n"
+        "   - 'condition_translation': a dict with 'KO' and the user's language, representing the condition name translation.\n\n"
+        
+        "Use formal medical terminology only. Avoid guessing unrelated conditions. Use symptom_details only to judge severity.\n\n"
+
+        f"Respond ONLY with valid JSON in the following structure:\n"
+        "{\n"
+        '  "possible_conditions": [ {"condition": {"KO": "...", "' + language.upper() + '": "..."}} ],\n'
+        '  "questions_to_doctor": [ {"KO": "...", "' + language.upper() + '": "..."} ],\n'
+        '  "symptom_checklist": {\n'
+        '    "무릎 관절염": {\n'
+        '      "condition_translation": {"KO": "무릎 관절염", "' + language.upper() + '": "Viêm khớp gối"},\n'
+        '      "symptoms": [ {"KO": "...", "' + language.upper() + '": "..."} ]\n'
+        "    }\n"
+        "  }\n"
+        "}\n\n"
+        "Respond ONLY with valid JSON. Do NOT include any explanation or formatting. No markdown.\n\n"
+        "[LANGUAGE RULE]\n"
+        "- If the user's language is \"KO\", return only Korean ('KO') in all translations. Do not include any other language keys.\n"
+        "- Otherwise, always include both 'KO' and the user's language code (e.g., 'VI', 'EN', 'ZH') — and no more.\n"
+        "- Never include keys for unused languages."
+    )
+
+    # 실제 호출
+    response = openai.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+            {
+                "role": "user",
+                "content": f"Symptoms: {symptom_description}\nLanguage: {language}"
+            }
+        ],
+        temperature=0.3
+    )
+
+    # 파싱
+    result = response.choices[0].message.content.strip()
+    return json.loads(result)
 
 def romanize_korean_names(names: list[str]) -> dict:
     """

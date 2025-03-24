@@ -26,7 +26,8 @@ def transcribe_audio(file_path):
     with open(file_path, "rb") as audio_file:
         transcript = openai.audio.transcriptions.create(
             model="whisper-1",
-            file=audio_file
+            file=audio_file,
+            prompt="이 오디오는 환자가 얘기하거나 의사가 얘기하는 내용입니다. 이를 고려해서 transcribe 해주세요."
         )
     return transcript.text
 
@@ -117,7 +118,11 @@ def summarize_text(text):
         Summarize the following conversation based on the **Original text** from the transcripts.  
         Ensure that the summary captures key points, emotions, and main ideas.  
         Provide the summary in **both Korean and English**.
-
+        
+        Some sentences may begin with a tag such as "Doctor:" or "Patient:". 
+        These tags indicate who might be speaking, but they are not always accurate. 
+        Use them only as helpful context, not as definitive labels.
+        
         Original Text:
         {text}
 
@@ -286,3 +291,29 @@ def generate_tts(text, lang='ko'):
         return s3_url
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+
+def classify_speaker(transcript):
+    """
+    주어진 텍스트가 의사 또는 환자의 발화인지 GPT로 판단하여 태그를 반환.
+    :param transcript: 변환된 텍스트
+    :return: 'Doctor', 'Patient', or 'Unknown'
+    """
+    try:
+        prompt = f"""
+        This audio is a spoken sentence from either a doctor or a patient.
+        Determine who is speaking in the following sentence: "{transcript}"
+        If it's the doctor, reply with "Doctor".
+        If it's the patient, reply with "Patient".
+        Only respond with one of these two values.
+        """
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        tag = response.choices[0].message.content.strip()
+        return tag if tag in ["Doctor", "Patient"] else "Unknown"
+    except Exception as e:
+        print(f"[ERROR] classify_speaker 실패: {e}", flush=True)
+        return "Unknown"

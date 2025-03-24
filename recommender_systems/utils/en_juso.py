@@ -6,7 +6,6 @@ config.read('keys.config')
 #주소 검색 API 정보
 API_URL = "https://business.juso.go.kr/addrlink/addrEngApi.do"
 CONFIRM_KEY = config['API_KEYS']['en_juso_api_key']  #발급받은 승인키 입력
-
 def get_english_address(korean_address):
     """
     한국어 주소를 입력받아 영문 주소를 반환하는 함수
@@ -45,4 +44,34 @@ def get_english_address(korean_address):
     else:
         print(f"요청 실패: HTTP 상태 코드 {response.status_code}")
 
+    return None
+
+def get_korean_address(english_address):
+    """
+    영문 주소를 입력받아 한글 도로명 주소를 반환하는 함수
+    """
+    params = {
+        'confmKey': CONFIRM_KEY,
+        'currentPage': 1,
+        'countPerPage': 1,
+        'keyword': english_address,
+        'resultType': 'json'
+    }
+
+    response = requests.get("https://business.juso.go.kr/addrlink/addrEngApi.do", params=params)
+
+    if response.status_code == 200:
+        try:
+            data = response.json()
+            if data['results']['common']['errorCode'] == '0':
+                juso_list = data['results']['juso']
+                if juso_list:
+                    return juso_list[0].get('korAddr')  #여기만 다름!
+            else:
+                print(f"API 오류: {data['results']['common']['errorMessage']}")
+        except Exception as e:
+            print(f"JSON 파싱 오류: {e}")
+    else:
+        print(f"요청 실패: HTTP 상태 코드 {response.status_code}")
+    
     return None

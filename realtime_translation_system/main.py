@@ -2,7 +2,7 @@ import uuid
 from flask import Flask, jsonify, request
 from datetime import datetime
 from mongodb_utils import get_database
-from ai_utils import transcribe_audio, translate_text, summarize_text, generate_tts, detect_language
+from ai_utils import transcribe_audio, translate_text, summarize_text, generate_tts, detect_language, classify_speaker
 import base64
 import tempfile
 import os
@@ -12,6 +12,7 @@ import time
 #Flask 및 WebSocket 설정
 from flask_cors import CORS
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB
 CORS(app)
 
 db = get_database()
@@ -93,7 +94,7 @@ def handle_audio_chunk():
         #1️.Whisper로 음성 변환 (파일 경로 사용)
         transcript = transcribe_audio(temp_audio_path)  
 
-        print("[DEBUG] transcript:", transcript)
+        print("[DEBUG] transcript:", transcript, flush=True)
 
         #2️.번역 실행
         #기존 detected_languages 유지
@@ -106,9 +107,8 @@ def handle_audio_chunk():
         if "detected_languages" in translation_result:
             translate_detected_languages = set(translation_result["detected_languages"])
             detected_languages.update(translate_detected_languages)  #기존 리스트에 추가
-            print("[DEBUG] detected_languages:", detected_languages)
+            print("[DEBUG] detected_languages:", detected_languages, flush=True)
         
-
         #3️. 감지된 언어 중 누락된 것 추가 + TTS 포맷 통일
         for lang in translation_result.get("detected_languages", []):
             if lang not in translations:
@@ -126,13 +126,26 @@ def handle_audio_chunk():
                 translations[lang] = {}
 
         #4️.MongoDB에 저장
+        # sessions_collection.update_one(
+        #     {"_id": session_id},
+        #     {"$set": {"detected_languages": list(detected_languages)},
+        #      "$push": {"transcripts": {
+        #         "original": transcript,
+        #         "translations": translations,
+        #         "timestamp": datetime.now()
+        #     }}}
+        # )
+        tag = classify_speaker(transcript)
+        print('tag:', tag, flush=True)
+
         sessions_collection.update_one(
             {"_id": session_id},
             {"$set": {"detected_languages": list(detected_languages)},
-             "$push": {"transcripts": {
+            "$push": {"transcripts": {
                 "original": transcript,
                 "translations": translations,
-                "timestamp": datetime.now()
+                "timestamp": datetime.now(),
+                "tag": tag
             }}}
         )
 
@@ -140,23 +153,41 @@ def handle_audio_chunk():
         os.remove(temp_audio_path)
 
         response_time = time.time() - start_time  #API 응답 시간 측정
-        print("[DEBUG] response_time:", time.time() - start_time)
+        print("[DEBUG] response_time:", time.time() - start_time, flush=True)
         db["logs"].insert_one({
             "event": "audio_chunk",
             "session_id": session_id,
             "timestamp": datetime.now(),
             "response_time": response_time,
-            "detected_languages": list(detected_languages)
+            "detected_languages": list(detected_languages),
+            "tag": tag
         })
 
+        # return jsonify({
+        #     "message": "Audio processed",
+        #     "session_id": session_id,
+        #     "transcript": transcript,
+        #     "translations": translations,
+        #     "detected_languages": list(detected_languages)
+        # }), 200
+        result = jsonify({
+            "message": "Audio processed",
+            "session_id": session_id,
+            "transcript": transcript,
+            "translations": translations,
+            "detected_languages": list(detected_languages),
+            "tag": tag
+        })
+        print('전달 결과:', result, flush=True)
         return jsonify({
             "message": "Audio processed",
             "session_id": session_id,
             "transcript": transcript,
             "translations": translations,
-            "detected_languages": list(detected_languages)
+            "detected_languages": list(detected_languages),
+            "tag": tag
         }), 200
-        
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -231,13 +262,24 @@ def get_transcripts_by_language(session_id, language):
             "warning": "Language not available in first transcript"
         }), 200
 
-    language_texts = [
-        t.get("translations", {}).get(language, {}).get("text", "")
-        for t in transcripts
-        if language in t.get("translations", {}) and t["translations"][language].get("text")
-    ]
+    # language_texts = [
+    #     t.get("translations", {}).get(language, {}).get("text", "")
+    #     for t in transcripts
+    #     if language in t.get("translations", {}) and t["translations"][language].get("text")
+    # ]
+    language_texts = []
+    for t in transcripts:
+        trans = t.get("translations", {}).get(language, {})
+        text = trans.get("text", "")
+        if text:
+            tag = t.get("tag", None)
+            if tag:
+                formatted_text = f"{tag}: {text}"
+            else:
+                formatted_text = text
+            language_texts.append(formatted_text)
 
-    joined_text = language_texts #", ".join(language_texts)
+    joined_text = language_texts
 
     return jsonify({
         "session_id": session_id,
@@ -280,7 +322,10 @@ def get_session_summary(session_id):
     if not session:
         return jsonify({"error": "Session not found"}), 404
     
-    full_transcript = "\n".join([t["original"] for t in session["transcripts"]])
+    full_transcript = "\n".join([
+        f"{t['tag']}: {t['original']}" if "tag" in t and t["tag"] else t["original"]
+        for t in session["transcripts"]
+    ])
     summary_text = summarize_text(full_transcript)
 
     try:

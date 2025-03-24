@@ -14,8 +14,8 @@ def translate_text(text, target_language="en"):
         "ko": "Korean",
         "en": "English",
         "vi": "Vietnamese",
-        "zh": "Chinese(Simplified)",
-        "zh-hant": "Chinese(Traditional)"
+        "zh_cn": "Chinese(Simplified)",
+        "zh_tw": "Chinese(Traditional)"
     }
 
     target_lang_full = language_map.get(target_language.lower(), "English")
