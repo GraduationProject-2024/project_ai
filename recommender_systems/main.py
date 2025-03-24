@@ -12,13 +12,13 @@ from er_utils.for_redis import *
 
 from utils.direction import calculate_travel_time_and_distance 
 from utils.geocode import address_to_coords, coords_to_address
-from utils.en_juso import get_english_address
+from utils.en_juso import get_english_address, get_korean_address
 import pandas as pd
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from gpt_utils.prompting_gpt import get_medical_info, romanize_korean_names
-from gpt_utils.prompting_gpt_for_profile import translate_text
+from gpt_utils.prompting_gpt import *
+#from gpt_utils.prompting_gpt_for_profile import translate_text
 
 app = Flask(__name__)
 
@@ -374,15 +374,27 @@ def process_symptoms():
         data = request.get_json()
         print(f"Request data: {data}", flush=True)
         symptoms = data.get('symptoms', [])
-        language = data.get('language')
+        language = data.get('language').upper()
 
         if not symptoms or not language:
             return jsonify({"error": "Both 'symptoms' and 'language' are required"}), 400
 
         #GPT API 호출
-        result = get_medical_info(symptoms, language)
-        print(f"report result:{result}", flush=True)
-        return jsonify(result), 200
+        #1) 먼저 department 구함
+        dept = get_department(symptoms, language)
+
+        #2) 다음, possible_conditions/questions_to_doctor/symptom_checklist 구함
+        condition_details = get_condition_details(symptoms, language, dept["KO"])
+
+        #하나로 묶어 반환
+        final_response = {
+            "department": dept,
+            "possible_conditions": condition_details["possible_conditions"],
+            "questions_to_doctor": condition_details["questions_to_doctor"],
+            "symptom_checklist": condition_details["symptom_checklist"]
+        }
+        print("final_response:", final_response, flush=True)
+        return jsonify(final_response), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -451,75 +463,114 @@ def geocode_coords_to_address():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# @app.route('/translate/basic_info', methods=['POST'])
+# def translate_basic_info():
+#     """
+#     basic_info의 모든 필드를 평탄화(flat)해서 반환. address와 gender는 번역.
+#     출력은 { "language": ..., "address": ..., "gender": ..., 나머지 필드... }
+#     """
+#     try:
+#         data = request.get_json()
+#         language = data.get("language", "en").lower()
+#         basic_info = data.get("basic_info", {})
 
-@app.route('/translate/basic_info', methods=['POST'])
-def translate_basic_info():
-    """
-    basic_info.address만 영어로 번역
-    입력: { "language": "EN", "basic_info": { ... } }
-    출력: 동일 구조 + address만 영어로 변환
-    """
-    try:
-        data = request.get_json()
-        basic_info = data.get("basic_info", {})
-        address = basic_info.get("address")
+#         if "address" not in basic_info:
+#             return jsonify({"error": "'address'는 basic_info 안에 있어야 합니다."}), 400
 
-        if not address:
-            return jsonify({"error": "'address'는 basic_info 안에 있어야 합니다."}), 400
+#         #주소 번역
+#         if language == "ko":
+#             translated_address = get_korean_address(basic_info["address"])
+#         else:
+#             translated_address = get_english_address(basic_info["address"])
 
-        translated_address = get_english_address(address)
-        if not translated_address:
-            return jsonify({"error": "주소 번역 실패"}), 500
+#         if not translated_address:
+#             return jsonify({"error": "주소 번역 실패"}), 500
 
-        basic_info["address"] = translated_address
-        return jsonify({
-            "language": data.get("language", "EN"),
-            "basic_info": basic_info
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#         #입력값 정규화용
+#         REVERSE_GENDER_MAP = {
+#             "MALE": "남성",
+#             "남성": "남성",
+#             "NAM": "남성",    #베트남어
+#             "男性": "남성",   #중국어
 
-@app.route('/translate/health_info', methods=['POST'])
-def translate_health_info():
-    """
-    health_info의 value만 GPT로 번역
-    입력: { "language": "en", "health_info": { ... } }
-    출력: 동일 구조 + value만 번역됨
-    """
-    try:
-        data = request.get_json()
-        target_language = data.get("language", "en")
-        health_info = data.get("health_info", {})
+#             "FEMALE": "여성",
+#             "여성": "여성",
+#             "NỮ": "여성",     #베트남어
+#             "女性": "여성"    #중국어
+#         }
 
-        translated_info = {
-            key: translate_text(val, target_language)
-            for key, val in health_info.items()
-        }
+#         #gender 번역
+#         GENDER_MAP = {
+#             "en": {"남성": "MALE", "여성": "FEMALE"},
+#             "vi": {"남성": "NAM", "여성": "NỮ"},
+#             "zh_cn": {"남성": "男性", "여성": "女性"},  #한자 그대로 사용
+#             "zh_tw": {"남성": "男性", "여성": "女性"},
+#             "ko": {"남성": "남성", "여성": "여성"}
+#         }
+#         raw_gender = basic_info.get("gender", "").strip().upper()
+#         normalized_gender = REVERSE_GENDER_MAP.get(raw_gender, raw_gender)
+#         translated_gender = GENDER_MAP.get(language, {}).get(normalized_gender, normalized_gender)
 
-        return jsonify({
-            "language": target_language,
-            "health_info": translated_info
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#         print('translated_gender', translated_gender, flush=True)
 
-@app.route('/translate/nickname', methods=['POST'])
-def translate_nickname():
-    """
-    nickname을 GPT로 번역
-    """
-    try:
-        data = request.get_json()
-        nickname = data.get("nickname")
-        target_language = data.get("language", "en")
+#         #새 dict 구성
+#         translated_info = {}
+#         for key, val in basic_info.items():
+#             if key == "address":
+#                 translated_info["address"] = translated_address
+#             elif key == "gender":
+#                 translated_info["gender"] = translated_gender
+#             else:
+#                 translated_info[key] = val  #나머지는 그대로
 
-        if not nickname:
-            return jsonify({"error": "'nickname' 필드는 필수입니다."}), 400
+#         #language도 top-level에 포함
+#         translated_info["language"] = data.get("language", "en").upper()
+#         print(translated_info, flush=True)
+#         return jsonify(translated_info), 200
 
-        translated = translate_text(nickname, target_language)
-        return jsonify({"nickname": translated}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+
+# @app.route('/translate/health_info', methods=['POST'])
+# def translate_health_info():
+#     """
+#     health_info의 value만 GPT로 번역
+#     입력: { "language": "en", "health_info": { ... } }
+#     출력: 동일 구조 + value만 번역됨
+#     """
+#     try:
+#         data = request.get_json()
+#         target_language = data.get("language", "en")
+#         health_info = data.get("health_info", {})
+
+#         translated_info = {
+#             key: translate_text(val, target_language)
+#             for key, val in health_info.items()
+#         }
+
+#         return jsonify(
+#             **translated_info), 200
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+# @app.route('/translate/nickname', methods=['POST'])
+# def translate_nickname():
+#     """
+#     nickname을 GPT로 번역
+#     """
+#     try:
+#         data = request.get_json()
+#         nickname = data.get("nickname")
+#         target_language = data.get("language", "en")
+
+#         if not nickname:
+#             return jsonify({"error": "'nickname' 필드는 필수입니다."}), 400
+
+#         translated = translate_text(nickname, target_language)
+#         return jsonify({"nickname": translated}), 200
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
