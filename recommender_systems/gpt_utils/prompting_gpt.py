@@ -17,6 +17,7 @@ def get_department(symptoms, language):
         "You are a multilingual medical assistant.\n"
         "Based ONLY on macro and micro body parts, return the most relevant Korean department (진료과) name.\n"
         "Ignore any other symptom details. Do NOT guess unrelated departments.\n"
+        "Departments unrelated to macro body parts must NOT be selected. Prioritize macro over micro body parts when determining the department.\n"
         "Choose only from the following Korean departments:\n"
         "- 가정의학과\n"
         "- 내과\n"
@@ -147,41 +148,73 @@ def get_condition_details(symptoms, language, department):
         symptom_description += f"macro: {macro}, micro: {micro}, details: {detail} | "
 
     # 프롬프트: department는 이미 정해졌으니 이걸 참고하라고 안내
+    # prompt = (
+    #     "You are a multilingual medical assistant. The user symptoms and department have already been established.\n"
+    #     f"Department: {department}\n\n"
+
+    #     "Your task is to return the following fields in JSON format, with proper multilingual formatting:\n\n"
+
+    #     "1) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'})\n"
+    #     "2) 'questions_to_doctor': A list of up to five practical and specific questions that the user (as a patient) should ask a doctor during consultation. Each question must be an object with keys 'KO' and the user's language (e.g., 'VI').\n"
+    #     "   - Each question must reflect the user's point of view (not the doctor's) and should help them understand the condition, treatment, risks, or follow-up steps. "
+    #     "   - Questions should begin with phrases like “Do I need...”, “What should I...”, “Is it normal that...”, “Should I avoid...”, etc. "
+    #     "   - Do NOT include questions that sound like something the doctor would say or explain unprompted. These are patient questions only.\n"
+    #     "3) 'symptom_checklist': For each condition (use Korean name as the key), provide:\n"
+    #     "   - 'symptoms': a list of symptoms with translations, each as a dict like {'KO': '무릎 통증', 'VI': 'Đau đầu gối'}\n"
+    #     "   - 'condition_translation': a dict with 'KO' and the user's language, representing the condition name translation.\n\n"
+        
+    #     "Use formal medical terminology only. Avoid guessing unrelated conditions. Use symptom_details only to judge severity.\n\n"
+
+    #     f"Respond ONLY with valid JSON in the following structure:\n"
+    #     "{\n"
+    #     '  "possible_conditions": [ {"condition": {"KO": "...", "' + language.upper() + '": "..."}} ],\n'
+    #     '  "questions_to_doctor": [ {"KO": "...", "' + language.upper() + '": "..."} ],\n'
+    #     '  "symptom_checklist": {\n'
+    #     '    "무릎 관절염": {\n'
+    #     '      "condition_translation": {"KO": "무릎 관절염", "' + language.upper() + '": "Viêm khớp gối"},\n'
+    #     '      "symptoms": [ {"KO": "...", "' + language.upper() + '": "..."} ]\n'
+    #     "    }\n"
+    #     "  }\n"
+    #     "}\n\n"
+    #     "Respond ONLY with valid JSON. Do NOT include any explanation or formatting. No markdown.\n\n"
+    #     "[LANGUAGE RULE]\n"
+    #     "- If the user's language is \"KO\", return only Korean ('KO') in all translations. Do not include any other language keys.\n"
+    #     "- Otherwise, always include both 'KO' and the user's language code (e.g., 'VI', 'EN', 'ZH') — and no more.\n"
+    #     "- Never include keys for unused languages."
+    # )
     prompt = (
         "You are a multilingual medical assistant. The user symptoms and department have already been established.\n"
         f"Department: {department}\n\n"
 
-        "Your task is to return the following fields in JSON format, with proper multilingual formatting:\n\n"
+        "Your task is to return the following fields in JSON format:\n\n"
 
         "1) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'})\n"
-        "2) 'questions_to_doctor': A list of up to five practical and specific questions that the user (as a patient) should ask a doctor during consultation. Each question must be an object with keys 'KO' and the user's language (e.g., 'VI').\n"
-        "   - Each question must reflect the user's point of view (not the doctor's) and should help them understand the condition, treatment, risks, or follow-up steps. "
-        "   - Questions should begin with phrases like “Do I need...”, “What should I...”, “Is it normal that...”, “Should I avoid...”, etc. "
-        "   - Do NOT include questions that sound like something the doctor would say or explain unprompted. These are patient questions only.\n"
-        "3) 'symptom_checklist': For each condition (use Korean name as the key), provide:\n"
-        "   - 'symptoms': a list of symptoms with translations, each as a dict like {'KO': '무릎 통증', 'VI': 'Đau đầu gối'}\n"
-        "   - 'condition_translation': a dict with 'KO' and the user's language, representing the condition name translation.\n\n"
-        
-        "Use formal medical terminology only. Avoid guessing unrelated conditions. Use symptom_details only to judge severity.\n\n"
+        "2) 'questions_to_doctor': A list of up to five patient-centered questions to ask the doctor. Each question must be an object with keys 'KO' and the user's language (e.g., 'VI').\n"
+        "3) 'symptom_checklist': A list of objects. Each object must contain:\n"
+        "   - 'condition_ko': the condition name in Korean\n"
+        "   - 'condition_translation': a dict with keys 'KO' and user's language\n"
+        "   - 'symptoms': a list of symptom translations, each as a dict with 'KO' and user's language\n\n"
 
-        f"Respond ONLY with valid JSON in the following structure:\n"
+        "Use only medically relevant conditions based on the department and symptoms. Use formal medical language.\n\n"
+
+        f"Return valid JSON in this format:\n"
         "{\n"
         '  "possible_conditions": [ {"condition": {"KO": "...", "' + language.upper() + '": "..."}} ],\n'
         '  "questions_to_doctor": [ {"KO": "...", "' + language.upper() + '": "..."} ],\n'
-        '  "symptom_checklist": {\n'
-        '    "무릎 관절염": {\n'
+        '  "symptom_checklist": [\n'
+        "    {\n"
+        '      "condition_ko": "무릎 관절염",\n'
         '      "condition_translation": {"KO": "무릎 관절염", "' + language.upper() + '": "Viêm khớp gối"},\n'
-        '      "symptoms": [ {"KO": "...", "' + language.upper() + '": "..."} ]\n'
+        '      "symptoms": [ {"KO": "무릎 통증", "' + language.upper() + '": "Đau đầu gối"} ]\n'
         "    }\n"
-        "  }\n"
+        "  ]\n"
         "}\n\n"
-        "Respond ONLY with valid JSON. Do NOT include any explanation or formatting. No markdown.\n\n"
         "[LANGUAGE RULE]\n"
-        "- If the user's language is \"KO\", return only Korean ('KO') in all translations. Do not include any other language keys.\n"
-        "- Otherwise, always include both 'KO' and the user's language code (e.g., 'VI', 'EN', 'ZH') — and no more.\n"
-        "- Never include keys for unused languages."
+        "- If language is 'KO', return only Korean keys.\n"
+        "- Otherwise, include both 'KO' and the user's language key.\n"
+        "- Never include extra languages.\n"
+        "Respond with only valid JSON. No formatting. No explanations."
     )
-
     # 실제 호출
     response = openai.chat.completions.create(
         model="gpt-4-turbo",
