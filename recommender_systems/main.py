@@ -3,7 +3,7 @@ from hosp_utils.es_functions import query_elasticsearch_hosp, filtering_hosp
 from pharm_utils.es_functions_for_pharmacy import query_elasticsearch_pharmacy
 from hosp_utils.recommendation import HospitalRecommender
 #사전학습때문에 추가한 두 utils
-import torch
+# import torch
 
 from er_utils.apis import *
 from er_utils.direction_for_er import *
@@ -380,18 +380,13 @@ def process_symptoms():
             return jsonify({"error": "Both 'symptoms' and 'language' are required"}), 400
 
         #GPT API 호출
-        #1) 먼저 department 구함
-        dept = get_department(symptoms, language)
+        analysis = analyze_symptoms(symptoms, language)
 
-        #2) 다음, possible_conditions/questions_to_doctor/symptom_checklist 구함
-        condition_details = get_condition_details(symptoms, language, dept["KO"])
-
-        #하나로 묶어 반환
         final_response = {
-            "department": dept,
-            "possible_conditions": condition_details["possible_conditions"],
-            "questions_to_doctor": condition_details["questions_to_doctor"],
-            "symptom_checklist": condition_details["symptom_checklist"]
+            "department": get_department_translation(analysis["department_ko"], language),
+            "possible_conditions": analysis["possible_conditions"],
+            "questions_to_doctor": analysis["questions_to_doctor"],
+            "symptom_checklist": analysis["symptom_checklist"]
         }
         print("final_response:", final_response, flush=True)
         return jsonify(final_response), 200
@@ -574,4 +569,5 @@ def geocode_coords_to_address():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+    #app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+    app.run()

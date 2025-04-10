@@ -44,18 +44,18 @@ def generate_title_and_type(content):
             data = json.loads(result)
             title_ko = data.get("title_ko", "긴급 신고")
             title_en = data.get("title_en", "Emergency Report")
-            emergency_type = data.get("emergency_type", "Etc")  #기본값 "Etc"
+            emergency_type = data.get("emergency_type", "Emergency")  #기본값 "Emergency"
         except json.JSONDecodeError:
             print("JSON 변환 실패, 기본값 반환")
             title_ko = "긴급 신고"
             title_en = "Emergency Report"
-            emergency_type = "Etc"
+            emergency_type = "Emergency"
 
         return title_ko, title_en, emergency_type
 
     except Exception as e:
         print(f"제목 및 유형 생성 실패: {e}")
-        return "긴급 신고", "Emergency Report", "Etc"
+        return "긴급 신고", "Emergency Report", "Emergency"
 
 import json
 def summarize_content(content):
