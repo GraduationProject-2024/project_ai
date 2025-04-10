@@ -7,3 +7,4 @@ webdriver_manager
 langdetect
 pymysql
 flask_cors
+gunicorn

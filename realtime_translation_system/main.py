@@ -12,7 +12,7 @@ import time
 #Flask 및 WebSocket 설정
 from flask_cors import CORS
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  #20MB
 CORS(app)
 
 db = get_database()
@@ -345,4 +345,5 @@ def get_session_summary(session_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=True, threaded=True)
+    #app.run(host="0.0.0.0", port=5002, debug=True, threaded=True)
+    app.run()

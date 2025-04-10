@@ -6,3 +6,4 @@ pytz
 langdetect
 pymysql
 flask-cors
+gunicorn

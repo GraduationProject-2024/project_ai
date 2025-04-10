@@ -167,7 +167,7 @@ def fill_form():
         processed_content = f"{content_en}({content_ko})"
         default_title_ko = "긴급 신고"
         default_title_en = "Emergency Report"
-        default_emergency_type = "Etc"
+        default_emergency_type = "Emergency"
     else:
         print('else구문의 content:', content)
         content_ko, content_en = summarize_content(content)
@@ -188,7 +188,7 @@ def fill_form():
     print("[생성된 title]:", default_title_ko, default_title_en)
     print("default_title:", default_title)
     
-    raw_emergency_type = clean_form_value(request.form.get("emergency_type", "Etc"))
+    raw_emergency_type = clean_form_value(request.form.get("emergency_type", "Emergency"))
 
     if (
         raw_emergency_type is None or
@@ -365,4 +365,5 @@ def tts():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5001, debug=True, threaded=True)
+    #app.run(host="0.0.0.0", port=5001, debug=True, threaded=True)
+    app.run()
