@@ -23,7 +23,8 @@ def transcribe_audio(audio_file_path):
 
     with open(audio_file_path, "rb") as audio_file:
             response = openai.audio.transcriptions.create(
-                model="whisper-1",
+                #model="whisper-1",
+                model="gpt-4o-transcribe",
                 file=audio_file
             )
     

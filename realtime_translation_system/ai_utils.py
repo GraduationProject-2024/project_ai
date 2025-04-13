@@ -25,7 +25,9 @@ def transcribe_audio(file_path):
     """
     with open(file_path, "rb") as audio_file:
         transcript = openai.audio.transcriptions.create(
-            model="whisper-1",
+            #model="whisper-1", #16s
+            model="gpt-4o-transcribe", #10~11s 정확도 굿
+            #model = "gpt-4o-mini-transcribe", #22s
             file=audio_file,
             prompt="이 오디오는 환자가 얘기하거나 의사가 얘기하는 내용입니다. 이를 고려해서 transcribe 해주세요."
         )
