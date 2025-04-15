@@ -22,7 +22,7 @@ def get_used_passwords():
     try:
         conn = pymysql.connect(**DB_CONFIG)
         with conn.cursor() as cursor:
-            cursor.execute("SELECT used_passwords FROM password_table;")
+            cursor.execute("SELECT er_password FROM basic_info;")
             result = cursor.fetchall()
         conn.close()
         return [row["used_passwords"] for row in result]  #리스트로 변환

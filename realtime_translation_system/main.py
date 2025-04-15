@@ -2,7 +2,7 @@ import uuid
 from flask import Flask, jsonify, request
 from datetime import datetime
 from mongodb_utils import get_database
-from ai_utils import transcribe_audio, translate_text, summarize_text, generate_tts, detect_language, classify_speaker
+from ai_utils import transcribe_audio, translate_text, summarize_text, detect_language, classify_speaker#,generate_tts
 import base64
 import tempfile
 import os
@@ -70,11 +70,14 @@ def start_session():
 @app.route("/transapi/audio_chunk", methods=["POST"])
 def handle_audio_chunk():
     start_time = time.time()  #요청 시작 시간
+    print('시작', flush=True)
     data = request.get_json()
+    print('data 받기', data, flush=True)
     session_id = data.get("session_id")
     audio_base64 = data.get("audio")
 
     if not session_id or not audio_base64:
+        print('session_id and audio are required', flush=True)
         return jsonify({"error": "session_id and audio are required"}), 400
 
     #MongoDB에서 세션 확인
@@ -84,8 +87,10 @@ def handle_audio_chunk():
 
     try:
         #Base64 디코딩 후 BytesIO 변환
+        print('변환 시도', flush=True)
         audio_bytes = base64.b64decode(audio_base64)
 
+        print('변환 후 모델 돌림', flush=True)
         #Whisper가 지원하는 형식으로 임시 파일 저장
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
             temp_audio.write(audio_bytes)
@@ -345,5 +350,5 @@ def get_session_summary(session_id):
 
 
 if __name__ == "__main__":
-    #app.run(host="0.0.0.0", port=5002, debug=True, threaded=True)
-    app.run()
+    app.run(host="0.0.0.0", port=5002, debug=True, threaded=True)
+    #app.run()

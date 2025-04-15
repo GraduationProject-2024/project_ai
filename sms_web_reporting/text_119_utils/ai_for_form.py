@@ -82,7 +82,8 @@ def summarize_content(content):
     ---
     """
     if not content or content.strip() == "":
-        return "요약된 신고 내용이 없습니다.", "No summarized report available."
+        print("요약된 신고 내용이 없습니다.", flush=True)
+        return "신고 내용이 없습니다.", "No report content provided."
     try:
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -92,11 +93,11 @@ def summarize_content(content):
         result = response.choices[0].message.content.strip()
 
         data = json.loads(result)
-        summary_ko = data.get("summary_ko", "요약된 신고 내용이 없습니다.")
-        summary_en = data.get("summary_en", "No summarized report available.")
+        summary_ko = data.get("summary_ko", "신고 내용이 없습니다.")
+        summary_en = data.get("summary_en", "No report content provided.")
 
         return summary_ko, summary_en
 
     except Exception as e:
         print(f"요약 실패: {e}")
-        return "요약된 신고 내용이 없습니다.", "No summarized report available."
+        return "신고 내용이 없습니다.", "No report content provided."
