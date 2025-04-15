@@ -25,9 +25,7 @@ def transcribe_audio(file_path):
     """
     with open(file_path, "rb") as audio_file:
         transcript = openai.audio.transcriptions.create(
-            #model="whisper-1", #16s
-            model="gpt-4o-transcribe", #10~11s 정확도 굿
-            #model = "gpt-4o-mini-transcribe", #22s
+            model="whisper-1",
             file=audio_file,
             prompt="이 오디오는 환자가 얘기하거나 의사가 얘기하는 내용입니다. 이를 고려해서 transcribe 해주세요."
         )
@@ -256,46 +254,6 @@ def upload_to_s3(file, folder, file_name):
     return s3_url
 
 
-def generate_tts(text, lang='ko'):
-    """
-    입력된 텍스트를 OpenAI TTS로 변환하고, S3에 업로드한 후 URL을 반환하는 함수.
-    :param text: 변환할 텍스트
-    :param lang: 음성 생성 언어 (기본값: "ko")
-    :return: S3 URL 또는 오류 메시지
-    """
-    try:
-        #1.KST(한국 시간) 기준으로 timestamp 생성
-        kst = pytz.timezone("Asia/Seoul")
-        timestamp = int(datetime.now(kst).timestamp())
-        file_name = f"{timestamp}.mp3"
-
-        #2️.임시 파일 생성
-        temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        temp_audio_path = temp_audio.name
-        temp_audio.close()  #파일 닫기 (스트림 해제)
-
-        #3️.OpenAI TTS 호출 및 저장
-        response = openai.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input=text
-        )
-        response.stream_to_file(temp_audio_path)
-
-        #4️.S3 업로드
-        with open(temp_audio_path, "rb") as audio_file:
-            audio_file.filename = file_name  #S3 업로드 시 필요한 파일 이름 속성 추가
-            s3_url = upload_to_s3(audio_file, f"audio/tts_outputs/recording/{lang}/", file_name)
-
-        #5️.임시 파일 삭제
-        os.remove(temp_audio_path)
-
-        return s3_url
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-
 def classify_speaker(transcript):
     """
     주어진 텍스트가 의사 또는 환자의 발화인지 GPT로 판단하여 태그를 반환.
@@ -319,3 +277,43 @@ def classify_speaker(transcript):
     except Exception as e:
         print(f"[ERROR] classify_speaker 실패: {e}", flush=True)
         return "Unknown"
+
+# def generate_tts(text, lang='ko'):
+#     """
+#     입력된 텍스트를 OpenAI TTS로 변환하고, S3에 업로드한 후 URL을 반환하는 함수.
+#     :param text: 변환할 텍스트
+#     :param lang: 음성 생성 언어 (기본값: "ko")
+#     :return: S3 URL 또는 오류 메시지
+#     """
+#     try:
+#         #1.KST(한국 시간) 기준으로 timestamp 생성
+#         kst = pytz.timezone("Asia/Seoul")
+#         timestamp = int(datetime.now(kst).timestamp())
+#         file_name = f"{timestamp}.mp3"
+
+#         #2️.임시 파일 생성
+#         temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+#         temp_audio_path = temp_audio.name
+#         temp_audio.close()  #파일 닫기 (스트림 해제)
+
+#         #3️.OpenAI TTS 호출 및 저장
+#         response = openai.audio.speech.create(
+#             model="tts-1",
+#             voice="alloy",
+#             input=text
+#         )
+#         response.stream_to_file(temp_audio_path)
+
+#         #4️.S3 업로드
+#         with open(temp_audio_path, "rb") as audio_file:
+#             audio_file.filename = file_name  #S3 업로드 시 필요한 파일 이름 속성 추가
+#             s3_url = upload_to_s3(audio_file, f"audio/tts_outputs/recording/{lang}/", file_name)
+
+#         #5️.임시 파일 삭제
+#         os.remove(temp_audio_path)
+
+#         return s3_url
+#     except Exception as e:
+#         return {"status": "error", "message": str(e)}
+
+
