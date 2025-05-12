@@ -2,6 +2,8 @@ from .department_mapping import get_department_translation
 import openai
 import json
 import configparser
+from rag_utils.rag_search import search_similar_conditions
+
 config = configparser.ConfigParser()
 config.read('keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
@@ -63,13 +65,29 @@ openai.api_key = config['API_KEYS']['chatgpt_api_key']
 #def get_condition_details(symptoms, language, department):
 def analyze_symptoms(symptoms, language):
     import openai, json, random
+    
+    # 입력 검증
+    if not symptoms or not isinstance(symptoms, list):
+        raise ValueError("증상 정보는 비어있지 않은 리스트여야 합니다.")
+    
+    # RAG를 통한 유사 질병 검색
+    similar_conditions = search_similar_conditions(symptoms)
+    
     #증상 문자열 합치기
     symptom_description = ""
     for s in symptoms:
-        macro = ", ".join(s.get('macro_body_parts', []))
-        micro = ", ".join(s.get('micro_body_parts', []))
-        detail = s.get('symptom_details', {})
-        symptom_description += f"macro: {macro}, micro: {micro}, details: {detail} | "
+        if not isinstance(s, dict):
+            continue
+            
+        macro = ", ".join(s.get('macro_body_parts', []) or [])
+        micro = ", ".join(s.get('micro_body_parts', []) or [])
+        detail = s.get('symptom_details', {}) or {}
+        
+        if macro or micro or detail:
+            symptom_description += f"macro: {macro}, micro: {micro}, details: {json.dumps(detail, ensure_ascii=False)} | "
+    
+    if not symptom_description.strip():
+        raise ValueError("유효한 증상 정보가 없습니다.")
 
     #출처:https://www.umms.org/shore/patients-visitors/for-patients/patient-safety-quality/questions-ask-your-doctor
     base_questions = {
@@ -169,8 +187,6 @@ def analyze_symptoms(symptoms, language):
     }
     
     prompt = (
-        # "You are a multilingual medical assistant. The user symptoms and department have already been established.\n"
-        # f"Department: {department}\n\n"
         "You are a multilingual medical assistant."
 
         "Your task is to return the following fields in JSON format, with proper multilingual formatting:\n\n"
@@ -198,7 +214,8 @@ def analyze_symptoms(symptoms, language):
         "   - 피부과\n"
         "   - 한방과\n\n"
 
-        "2) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'})\n"
+        "2) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'}). Use the following similar conditions as reference:\n"
+        f"{json.dumps(similar_conditions, ensure_ascii=False, indent=2)}\n\n"
         "3) 'questions_to_doctor': Leave this field as an empty list []. The questions will be filled in by the application logic later."
         "4) 'symptom_checklist': A list of objects. Each object must contain:\n"
         "   - 'condition_ko': the condition name in Korean\n"

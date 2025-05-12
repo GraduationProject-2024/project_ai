@@ -2,8 +2,8 @@ from flask import Flask, request, jsonify
 from hosp_utils.es_functions import query_elasticsearch_hosp, filtering_hosp
 from pharm_utils.es_functions_for_pharmacy import query_elasticsearch_pharmacy
 from hosp_utils.recommendation import HospitalRecommender
-#사전학습때문에 추가한 두 utils
-# import torch
+from pharm_utils.recommendation import PharmacyRecommender
+from utils.feedback_manager import FeedbackManager
 
 from er_utils.apis import *
 from er_utils.direction_for_er import *
@@ -18,12 +18,93 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from gpt_utils.prompting_gpt import *
-#from gpt_utils.prompting_gpt_for_profile import translate_text
+import schedule
+import threading
+import mysql.connector
+from datetime import datetime
+import configparser
 
 app = Flask(__name__)
 
+# DB 연결 설정
+def get_db_connection():
+    config = configparser.ConfigParser()
+    config.read('keys.config')
+    
+    return mysql.connector.connect(
+        host=config['DB_INFO']['host'],
+        user=config['DB_INFO']['id'],
+        password=config['DB_INFO']['password'],
+        database=config['DB_INFO']['db']
+    )
+
+# 추천 모델 인스턴스
+hospital_recommender = None
+pharmacy_recommender = None
+
+def initialize_recommenders():
+    """추천 모델 초기화"""
+    global hospital_recommender, pharmacy_recommender
+    db_connection = get_db_connection()
+    hospital_recommender = HospitalRecommender(
+        db_connection=db_connection
+    )
+    pharmacy_recommender = PharmacyRecommender(
+        db_connection=db_connection
+    )
+
+def retrain_models():
+    """모델 재훈련"""
+    global hospital_recommender, pharmacy_recommender
+    
+    # 최근 7일간 선택한 사용자들의 member_id 가져오기
+    query = """
+    SELECT DISTINCT member_id 
+    FROM (
+        SELECT member_id, selected_at FROM selected_hp
+        UNION
+        SELECT member_id, selected_at FROM selected_ph
+    ) combined
+    WHERE selected_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+    """
+    
+    try:
+        db_connection = get_db_connection()
+        member_ids = pd.read_sql(query, db_connection)['member_id'].tolist()
+        
+        for member_id in member_ids:
+            if hospital_recommender:
+                hospital_recommender.update_from_feedback(member_id)
+            if pharmacy_recommender:
+                pharmacy_recommender.update_from_feedback(member_id)
+                
+    except Exception as e:
+        print(f"모델 재훈련 중 오류 발생: {e}")
+    finally:
+        if 'db_connection' in locals():
+            db_connection.close()
+
+def run_scheduler():
+    """스케줄러 실행"""
+    schedule.every().day.at("03:00").do(retrain_models)  # 매일 새벽 3시에 재훈련
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+# 스케줄러 시작
+scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+scheduler_thread.start()
+
+# 모델 초기화
+initialize_recommenders()
+
 @app.route('/recommend_hospital', methods=['POST'])
 def recommend_hospital():
+    global hospital_recommender
+    if not hospital_recommender:
+        initialize_recommenders()
+        
     #전체 시작 시간
     total_start_time = time.time()
 
@@ -36,6 +117,7 @@ def recommend_hospital():
     suspected_disease = data.get("suspected_disease", None)  #의심 질병
     secondary_hospital = data.get("secondary_hospital", False)
     tertiary_hospital = data.get("tertiary_hospital", False)
+    member_id = data.get("member_id")
 
     #Geocoding(주소 -> 위도, 경도)
     geocoding_start_time = time.time()
@@ -67,7 +149,7 @@ def recommend_hospital():
     es_end_time = time.time()
     print(f"Elasticsearch Query Time: {es_end_time - es_start_time:.2f} seconds")
 
-    #필터링된 결과 추출
+    #Elasticsearch에서 열과 관련해 필터링된 결과 추출
     filtering_start_time = time.time()
     filtered_hospitals = filtering_hosp(es_results)
     hospital_data = [hospital for hospital in filtered_hospitals]
@@ -111,23 +193,23 @@ def recommend_hospital():
 
     #추천 시스템
     recommend_start_time = time.time()
-    recommender = HospitalRecommender()
-    user_embedding = recommender.embed_user_profile(basic_info, health_info, suspected_disease=suspected_disease, department=department)
+    user_embedding = hospital_recommender.embed_user_profile(basic_info, health_info, suspected_disease=suspected_disease, department=department)
     
     user_embedding_time = time.time()
     print(f'user_embedding 만듦: {user_embedding_time - recommend_start_time:.2f}')
 
     df_fillna_time = time.time()
 
-    hospital_embeddings = recommender.embed_hospital_data(df)
+    hospital_embeddings = hospital_recommender.embed_hospital_data(df)
     
     hospital_embeddings_time = time.time()
     print(f'hospital_embeddings 만듦: {hospital_embeddings_time - df_fillna_time:.2f}')
     
-    recommended_hospitals = recommender.recommend_hospitals(
+    recommended_hospitals = hospital_recommender.recommend_hospitals(
         user_embedding=user_embedding,
         hospital_embeddings=hospital_embeddings,
-        hospitals_df=df
+        hospitals_df=df,
+        member_id=member_id 
     )
     recommend_end_time = time.time()
     print(f"Recommendation System Time: {recommend_end_time - recommend_start_time:.2f} seconds")
@@ -135,16 +217,8 @@ def recommend_hospital():
     for col in ["transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
         recommended_hospitals.loc[recommended_hospitals[col].isnull(), col] = 0
 
-    recommended_hospitals["total_travel_time_sec"] = (
-        recommended_hospitals["transit_travel_time_h"] * 3600 +
-        recommended_hospitals["transit_travel_time_m"] * 60 +
-        recommended_hospitals["transit_travel_time_s"]
-    )
-
-
-    #최종 정렬: 이동시간 정렬 후 similarity 정렬
-    recommended_hospitals = recommended_hospitals.sort_values(by=["total_travel_time_sec","similarity"], ascending=[True,False])
-    recommended_hospitals = recommended_hospitals.drop(columns=["total_travel_time_sec"])
+    #최종 정렬: 이동시간과 병원-약국의 콘텐츠 기반 필터링, 로그 기반 보너를 반영한 similarity열로 정렬
+    recommended_hospitals = recommended_hospitals.sort_values(by=["similarity"], ascending=[False])
     recommended_hospitals = recommended_hospitals.reset_index(drop=True)
     
     sorting_end_time = time.time()
@@ -180,11 +254,16 @@ def recommend_hospital():
     
 @app.route('/recommend_pharmacy', methods=['POST'])
 def recommend_pharmacy():
+    global pharmacy_recommender
+    if not pharmacy_recommender:
+        initialize_recommenders()
+        
     data = request.json  #JSON 데이터 파싱
     print(f"[pharmacy] Request data: {data}", flush=True)
     user_lat = data.get('lat')
     user_lon = data.get('lon')
     basic_info = data.get("basic_info")
+    member_id = data.get("member_id")
 
     try:
         coords = address_to_coords(basic_info['address'])
@@ -205,7 +284,7 @@ def recommend_pharmacy():
         pharmacy_data = [hit['_source'] for hit in es_results['hits']['hits']]
         df = pd.DataFrame(pharmacy_data)
 
-        #열 이름 변경(멀티쓰레딩 전에 처리)
+        #열 이름 변경
         df.rename(columns={
             'wgs84lat': 'latitude',
             'wgs84lon': 'longitude',
@@ -243,25 +322,28 @@ def recommend_pharmacy():
         df.drop(columns=["travel_info"], inplace=True)
         for col in ["transit_travel_distance_km", "transit_travel_time_h", "transit_travel_time_m", "transit_travel_time_s"]:
             df.loc[df[col].isnull(), col] = 0
-
+        
+        recommended_pharmacies = pharmacy_recommender.recommend_pharmacies(df, member_id=member_id)
+        
+        #최종 정렬: 이동시간과 운영시간 보너스를 반영한 similarity만으로 정렬
+        recommended_pharmacies = recommended_pharmacies.sort_values(by=["similarity"], ascending=[False])
+        recommended_pharmacies = recommended_pharmacies.reset_index(drop=True)
+        
         #언어가 한국어가 아닐 경우 영문 주소 변환
         if basic_info.get("language").lower() != "ko":
             with ThreadPoolExecutor(max_workers=10) as executor:
-                df["eng_address"] = df["address"].apply(get_english_address)
-            df = df[df["eng_address"].notnull()] #변환이 안되는 데이터의 경우 그 row를 그냥 빼버리기
-            df["address"] = df["eng_address"]
-            df.drop(columns=["eng_address"], inplace=True)
+                recommended_pharmacies["eng_address"] = recommended_pharmacies["address"].apply(get_english_address)
+            recommended_pharmacies = recommended_pharmacies[recommended_pharmacies["eng_address"].notnull()]
+            recommended_pharmacies["address"] = recommended_pharmacies["eng_address"]
+            recommended_pharmacies.drop(columns=["eng_address"], inplace=True)
 
-        #약국명 음독 추가
-        names = df["dutyname"].tolist()
+        names = recommended_pharmacies["dutyname"].tolist()
         romanized_map = romanize_korean_names(names)
-
-        df["dutyname"] = df["dutyname"].map(
+        recommended_pharmacies["dutyname"] = recommended_pharmacies["dutyname"].map(
             lambda x: f"{x} ({romanized_map.get(x)})" if romanized_map.get(x) else x
         )
         
-        #결과 반환
-        return jsonify(df.to_dict(orient='records'))
+        return jsonify(recommended_pharmacies.to_dict(orient='records'))
     else:
         return jsonify({"message": "No pharmacies found"}), 404
 
@@ -457,117 +539,3 @@ def geocode_coords_to_address():
         return jsonify(address), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-# @app.route('/translate/basic_info', methods=['POST'])
-# def translate_basic_info():
-#     """
-#     basic_info의 모든 필드를 평탄화(flat)해서 반환. address와 gender는 번역.
-#     출력은 { "language": ..., "address": ..., "gender": ..., 나머지 필드... }
-#     """
-#     try:
-#         data = request.get_json()
-#         language = data.get("language", "en").lower()
-#         basic_info = data.get("basic_info", {})
-
-#         if "address" not in basic_info:
-#             return jsonify({"error": "'address'는 basic_info 안에 있어야 합니다."}), 400
-
-#         #주소 번역
-#         if language == "ko":
-#             translated_address = get_korean_address(basic_info["address"])
-#         else:
-#             translated_address = get_english_address(basic_info["address"])
-
-#         if not translated_address:
-#             return jsonify({"error": "주소 번역 실패"}), 500
-
-#         #입력값 정규화용
-#         REVERSE_GENDER_MAP = {
-#             "MALE": "남성",
-#             "남성": "남성",
-#             "NAM": "남성",    #베트남어
-#             "男性": "남성",   #중국어
-
-#             "FEMALE": "여성",
-#             "여성": "여성",
-#             "NỮ": "여성",     #베트남어
-#             "女性": "여성"    #중국어
-#         }
-
-#         #gender 번역
-#         GENDER_MAP = {
-#             "en": {"남성": "MALE", "여성": "FEMALE"},
-#             "vi": {"남성": "NAM", "여성": "NỮ"},
-#             "zh_cn": {"남성": "男性", "여성": "女性"},  #한자 그대로 사용
-#             "zh_tw": {"남성": "男性", "여성": "女性"},
-#             "ko": {"남성": "남성", "여성": "여성"}
-#         }
-#         raw_gender = basic_info.get("gender", "").strip().upper()
-#         normalized_gender = REVERSE_GENDER_MAP.get(raw_gender, raw_gender)
-#         translated_gender = GENDER_MAP.get(language, {}).get(normalized_gender, normalized_gender)
-
-#         print('translated_gender', translated_gender, flush=True)
-
-#         #새 dict 구성
-#         translated_info = {}
-#         for key, val in basic_info.items():
-#             if key == "address":
-#                 translated_info["address"] = translated_address
-#             elif key == "gender":
-#                 translated_info["gender"] = translated_gender
-#             else:
-#                 translated_info[key] = val  #나머지는 그대로
-
-#         #language도 top-level에 포함
-#         translated_info["language"] = data.get("language", "en").upper()
-#         print(translated_info, flush=True)
-#         return jsonify(translated_info), 200
-
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-
-# @app.route('/translate/health_info', methods=['POST'])
-# def translate_health_info():
-#     """
-#     health_info의 value만 GPT로 번역
-#     입력: { "language": "en", "health_info": { ... } }
-#     출력: 동일 구조 + value만 번역됨
-#     """
-#     try:
-#         data = request.get_json()
-#         target_language = data.get("language", "en")
-#         health_info = data.get("health_info", {})
-
-#         translated_info = {
-#             key: translate_text(val, target_language)
-#             for key, val in health_info.items()
-#         }
-
-#         return jsonify(
-#             **translated_info), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-# @app.route('/translate/nickname', methods=['POST'])
-# def translate_nickname():
-#     """
-#     nickname을 GPT로 번역
-#     """
-#     try:
-#         data = request.get_json()
-#         nickname = data.get("nickname")
-#         target_language = data.get("language", "en")
-
-#         if not nickname:
-#             return jsonify({"error": "'nickname' 필드는 필수입니다."}), 400
-
-#         translated = translate_text(nickname, target_language)
-#         return jsonify({"nickname": translated}), 200
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    #app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
-    app.run()
