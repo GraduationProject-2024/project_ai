@@ -25,7 +25,7 @@ def get_used_passwords():
             cursor.execute("SELECT er_password FROM basic_info;")
             result = cursor.fetchall()
         conn.close()
-        return [row["used_passwords"] for row in result]  #리스트로 변환
+        return [row["er_password"] for row in result]  #리스트로 변환
     except pymysql.MySQLError as err:
         print(f"MySQL Error: {err}")
         return []
