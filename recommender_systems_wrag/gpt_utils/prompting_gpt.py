@@ -4,84 +4,28 @@ import json
 import configparser
 from rag_utils.rag_search import search_similar_conditions
 
-config = configparser.ConfigParser()
+config=configparser.ConfigParser()
 config.read('keys.config')
-openai.api_key = config['API_KEYS']['chatgpt_api_key']
-
-# def get_department(symptoms, language):
-#     combined_description = ""
-#     for symptom in symptoms:
-#         macro = ", ".join(symptom.get('macro_body_parts', []))
-#         micro = ", ".join(symptom.get('micro_body_parts', []))
-#         combined_description += f"Macro: {macro}, Micro: {micro} | "
-
-#     prompt = (
-#         "You are a multilingual medical assistant.\n"
-#         "Based ONLY on macro and micro body parts, return the most relevant Korean department (진료과) name.\n"
-#         "Ignore any other symptom details. Do NOT guess unrelated departments.\n"
-#         "Departments unrelated to macro body parts must NOT be selected. Prioritize macro over micro body parts when determining the department.\n"
-#         "Choose only from the following Korean departments:\n"
-#         "- 가정의학과\n"
-#         "- 내과\n"
-#         "- 마취통증의학과\n"
-#         "- 비뇨의학과\n"
-#         "- 산부인과\n"
-#         "- 성형외과\n"
-#         "- 소아청소년과\n"
-#         "- 신경과\n"
-#         "- 신경외과\n"
-#         "- 심장혈관흉부외과\n"
-#         "- 안과\n"
-#         "- 영상의학과\n"
-#         "- 예방의학과\n"
-#         "- 외과\n"
-#         "- 이비인후과\n"
-#         "- 재활의학과\n"
-#         "- 정신건강의학과\n"
-#         "- 정형외과\n"
-#         "- 치의과\n"
-#         "- 피부과\n"
-#         "- 한방과\n\n"
-#         "Return JSON only: { \"department_ko\": \"정형외과\" }"
-#     )
-
-#     messages = [
-#         {"role": "system", "content": prompt},
-#         {"role": "user", "content": f"Symptoms: {combined_description}\nLanguage: {language}"}
-#     ]
-
-#     response = openai.chat.completions.create(
-#         model="gpt-4-turbo",
-#         messages=messages,
-#         temperature=0.3
-#     )
-
-#     result = json.loads(response.choices[0].message.content.strip())
-#     dept_ko = result["department_ko"]
-
-#     return get_department_translation(dept_ko, language)
-
-
-#def get_condition_details(symptoms, language, department):
+openai.api_key=config['API_KEYS']['chatgpt_api_key']
 def analyze_symptoms(symptoms, language):
     import openai, json, random
     
-    # 입력 검증
+    #입력 검증
     if not symptoms or not isinstance(symptoms, list):
         raise ValueError("증상 정보는 비어있지 않은 리스트여야 합니다.")
     
-    # RAG를 통한 유사 질병 검색
-    similar_conditions = search_similar_conditions(symptoms)
+    #RAG를 통한 유사 질병 검색
+    similar_conditions=search_similar_conditions(symptoms)
     
     #증상 문자열 합치기
-    symptom_description = ""
+    symptom_description=""
     for s in symptoms:
         if not isinstance(s, dict):
             continue
             
-        macro = ", ".join(s.get('macro_body_parts', []) or [])
-        micro = ", ".join(s.get('micro_body_parts', []) or [])
-        detail = s.get('symptom_details', {}) or {}
+        macro=", ".join(s.get('macro_body_parts', []) or [])
+        micro=", ".join(s.get('micro_body_parts', []) or [])
+        detail=s.get('symptom_details', {}) or {}
         
         if macro or micro or detail:
             symptom_description += f"macro: {macro}, micro: {micro}, details: {json.dumps(detail, ensure_ascii=False)} | "
@@ -89,8 +33,7 @@ def analyze_symptoms(symptoms, language):
     if not symptom_description.strip():
         raise ValueError("유효한 증상 정보가 없습니다.")
 
-    #출처:https://www.umms.org/shore/patients-visitors/for-patients/patient-safety-quality/questions-ask-your-doctor
-    base_questions = {
+    base_questions={
         "KO": [
             "통증이 생기면 어떻게 해야 하나요?",
             "치료나 진료에 대해 궁금한 점이 있으면 누구에게 연락해야 하나요?",
@@ -148,7 +91,7 @@ def analyze_symptoms(symptoms, language):
         ]
     }
     #질명별 질문 템플릿
-    condition_question_templates = {
+    condition_question_templates={
         "KO": [
             "{}에 대한 치료는 일반적으로 얼마나 오래 걸리나요?",
             "{}에 의해 합병증이 생길 수도 있나요?",
@@ -186,12 +129,12 @@ def analyze_symptoms(symptoms, language):
         ]
     }
     
-    prompt = (
+    prompt=(
         "You are a multilingual medical assistant."
-
         "Your task is to return the following fields in JSON format, with proper multilingual formatting:\n\n"
-
-        "1) 'department_ko':Based ONLY on macro and micro body parts, return the most relevant Korean department (진료과) name. Ignore any other symptom details. Do NOT guess unrelated departments.Departments unrelated to macro body parts must NOT be selected. Prioritize macro over micro body parts when determining the department. Choose only from the following Korean departments:\n"
+        "1) 'department_ko':Based ONLY on macro and micro body parts, return the most relevant Korean department (진료과) name." 
+        "Ignore any other symptom details. Do NOT guess unrelated departments.Departments unrelated to macro body parts must NOT be selected."
+        "Prioritize macro over micro body parts when determining the department. Choose only from the following Korean departments:\n"
         "   - 가정의학과\n"
         "   - 내과\n"
         "   - 마취통증의학과\n"
@@ -214,7 +157,8 @@ def analyze_symptoms(symptoms, language):
         "   - 피부과\n"
         "   - 한방과\n\n"
 
-        "2) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'}). Use the following similar conditions as reference:\n"
+        "2) 'possible_conditions': A list of objects, each with a 'condition' field containing language-specific translations (e.g., {'KO': '무릎 관절염', 'VI': 'Viêm khớp gối'})."
+        "Use the following similar conditions as reference:\n"
         f"{json.dumps(similar_conditions, ensure_ascii=False, indent=2)}\n\n"
         "3) 'questions_to_doctor': Leave this field as an empty list []. The questions will be filled in by the application logic later."
         "4) 'symptom_checklist': A list of objects. Each object must contain:\n"
@@ -244,7 +188,7 @@ def analyze_symptoms(symptoms, language):
     )
 
     #실제 호출
-    response = openai.chat.completions.create(
+    response=openai.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
             {"role": "system", "content": prompt},
@@ -257,14 +201,13 @@ def analyze_symptoms(symptoms, language):
     )
 
     #파싱
-    result = json.loads(response.choices[0].message.content.strip())
-    questions_to_doctor = []
+    result=json.loads(response.choices[0].message.content.strip())
+    questions_to_doctor=[]
 
-    base_count = min(3, len(base_questions[language]))
-    condition_count = min(2, len(result["possible_conditions"]))
+    base_count=min(3, len(base_questions[language]))
+    condition_count=min(2, len(result["possible_conditions"]))
 
     #base 질문 처리
-    #for q in random.sample(range(len(base_questions[language])), 3):
     for q in random.sample(range(len(base_questions[language])), base_count):
         if language == "KO":
             questions_to_doctor.append({"KO": base_questions["KO"][q]})
@@ -275,12 +218,12 @@ def analyze_symptoms(symptoms, language):
             })
 
     #condition 질문 처리
-    chosen_idxs = random.sample(range(len(result["possible_conditions"])), condition_count)
-    template_idxs = random.sample(range(len(condition_question_templates[language])), 2)
+    chosen_idxs=random.sample(range(len(result["possible_conditions"])), condition_count)
+    template_idxs=random.sample(range(len(condition_question_templates[language])), 2)
 
     for i, cond_idx in enumerate(chosen_idxs):
-        cond = result["possible_conditions"][cond_idx]["condition"]
-        t_idx = template_idxs[i]
+        cond=result["possible_conditions"][cond_idx]["condition"]
+        t_idx=template_idxs[i]
 
         if language == "KO":
             questions_to_doctor.append({
@@ -292,23 +235,16 @@ def analyze_symptoms(symptoms, language):
                 language: condition_question_templates[language][t_idx].format(cond[language])
             })
 
-    result["questions_to_doctor"] = questions_to_doctor
-    print(result)
+    result["questions_to_doctor"]=questions_to_doctor
     return result
 
 def romanize_korean_names(names: list[str]) -> dict:
-    """
-    여러 병원명 또는 약국명을 GPT를 사용해 음독(로마자 표기)으로 한 번에 변환
-    Args:
-        names (list[str]): 한국어 병원명 리스트
-    Returns:
-        dict[str, str]: {병원명: 음독 결과}
-    """
+    #병원명이나 약국명을 GPT를 사용해 음독(로마자 표기)
     import openai
     import json
 
     try:
-        system_prompt = (
+        system_prompt=(
             "You are a Korean language expert. Convert the following Korean medical facility names into Romanized Korean "
             "using proper spacing. Always separate the medical suffix at the end like '병원', '의원', '약국', '한의원'.\n"
             "Return the result as a JSON dictionary where each key is the original name and the value is the Romanized name. "
@@ -320,11 +256,11 @@ def romanize_korean_names(names: list[str]) -> dict:
             "}"
         )
 
-        name_list_text = "\n".join(f"- {name}" for name in names)
+        name_list_text="\n".join(f"- {name}" for name in names)
 
-        user_prompt = f"Romanize the following names:\n{name_list_text}"
+        user_prompt=f"Romanize the following names:\n{name_list_text}"
 
-        response = openai.chat.completions.create(
+        response=openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -333,8 +269,8 @@ def romanize_korean_names(names: list[str]) -> dict:
             temperature=0.2
         )
 
-        result_text = response.choices[0].message.content.strip()
-        result = json.loads(result_text)
+        result_text=response.choices[0].message.content.strip()
+        result=json.loads(result_text)
         return result
 
     except Exception as e:

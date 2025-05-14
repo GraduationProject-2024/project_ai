@@ -1,9 +1,9 @@
 from elasticsearch import Elasticsearch
 import configparser
-config = configparser.ConfigParser()
+config=configparser.ConfigParser()
 config.read('keys.config')
 
-es = Elasticsearch(
+es=Elasticsearch(
     hosts=[config['ES_INFO']['host']],
     basic_auth=(config['ES_INFO']['username'], config['ES_INFO']['password']),
     verify_certs=False
@@ -13,7 +13,7 @@ def query_elasticsearch_pharmacy(user_lat, user_lon):
     """
     Elasticsearch에서 사용자 위치와 가까운 약국 검색.
     """
-    query = {
+    query={
         "query": {
             "bool": {
                 "filter": [
@@ -43,5 +43,5 @@ def query_elasticsearch_pharmacy(user_lat, user_lon):
     }
 
     #Elasticsearch 검색 실행
-    es_results = es.search(index="pharmacy_records_v2", body=query)
+    es_results=es.search(index="pharmacy_records_v2", body=query)
     return es_results

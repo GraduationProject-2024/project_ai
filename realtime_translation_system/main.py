@@ -12,26 +12,26 @@ import time
 #Flask 및 WebSocket 설정
 from flask_cors import CORS
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  #20MB
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024#20MB 제한 고려
 CORS(app)
 
 db = get_database()
 sessions_collection = db["sessions"]
-
-#MongoDB 인덱스 추가(쿼리 성능 개선)
+#MongoDB 인덱스 추가(쿼리 성능 고려)
 sessions_collection.create_index([("created_at", -1)])
 
 @app.route("/transapi/start_session", methods=["POST"])
 def start_session():
-    start_time = time.time()  #요청 시작 시간
+    start_time = time.time()#요청 시작 시간
 
     data = request.get_json()
-    member_id = data.get("member_id") #member의 id(PK)
+    member_id = data.get("member_id")#member 테이블 id(PK)
     
     if not member_id:
         return jsonify({"error": "id is required"}), 400
 
-    session_id = f"session_{uuid.uuid4().hex}"  #유니크한 session_id 생성
+    #유니크한 session_id 생성
+    session_id = f"session_{uuid.uuid4().hex}"
 
     #사용자 main_language 조회
     main_language = get_main_language(member_id)
@@ -87,18 +87,14 @@ def handle_audio_chunk():
 
     try:
         #Base64 디코딩 후 BytesIO 변환
-        print('변환 시도', flush=True)
         audio_bytes = base64.b64decode(audio_base64)
-
-        print('변환 후 모델 돌림', flush=True)
         #Whisper가 지원하는 형식으로 임시 파일 저장
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
             temp_audio.write(audio_bytes)
-            temp_audio_path = temp_audio.name  #Whisper에 전달할 파일 경로
+            temp_audio_path = temp_audio.name #Whisper에 전달할 파일 경로
 
         #1️.Whisper로 음성 변환 (파일 경로 사용)
         transcript = transcribe_audio(temp_audio_path)  
-
         print("[DEBUG] transcript:", transcript, flush=True)
 
         #2️.번역 실행
@@ -114,35 +110,23 @@ def handle_audio_chunk():
             detected_languages.update(translate_detected_languages)  #기존 리스트에 추가
             print("[DEBUG] detected_languages:", detected_languages, flush=True)
         
-        #3️. 감지된 언어 중 누락된 것 추가 + TTS 포맷 통일
+        #감지된 언어 기준으로 만약 번역에 없다면 번역문에 추가 매핑
         for lang in translation_result.get("detected_languages", []):
             if lang not in translations:
                 translations[lang] = {"text": transcript}
 
-        #TTS 생성 포맷 보장
+        #형식 재정리
         for lang in translations:
             text = translations[lang].get("text", "") if isinstance(translations[lang], dict) else translations[lang]
             if text and isinstance(text, str) and text.strip():
                 translations[lang] = {
                     "text": text,
-                    #"tts_url": generate_tts(text, lang)
                 }
             else:
                 translations[lang] = {}
 
-        #4️.MongoDB에 저장
-        # sessions_collection.update_one(
-        #     {"_id": session_id},
-        #     {"$set": {"detected_languages": list(detected_languages)},
-        #      "$push": {"transcripts": {
-        #         "original": transcript,
-        #         "translations": translations,
-        #         "timestamp": datetime.now()
-        #     }}}
-        # )
+        #태깅 후 MongoDB에 저장
         tag = classify_speaker(transcript)
-        print('tag:', tag, flush=True)
-
         sessions_collection.update_one(
             {"_id": session_id},
             {"$set": {"detected_languages": list(detected_languages)},
@@ -168,13 +152,6 @@ def handle_audio_chunk():
             "tag": tag
         })
 
-        # return jsonify({
-        #     "message": "Audio processed",
-        #     "session_id": session_id,
-        #     "transcript": transcript,
-        #     "translations": translations,
-        #     "detected_languages": list(detected_languages)
-        # }), 200
         result = jsonify({
             "message": "Audio processed",
             "session_id": session_id,
@@ -220,7 +197,7 @@ def end_session():
         "event": "end_session",
         "session_id": session_id,
         "timestamp": datetime.now(),
-        "session_duration": session_duration  #세션 지속 시간 저장
+        "session_duration": session_duration#세션 지속 시간 저장
     })
 
     #종료 시간 기록
@@ -247,6 +224,7 @@ def get_detected_languages(session_id):
         "detected_languages": first_languages
     }), 200
 
+#한 세션에 대해서 언어별로 스크립트 확인
 @app.route("/transapi/get_transcripts/<session_id>/<language>", methods=["GET"])
 def get_transcripts_by_language(session_id, language):
     session = sessions_collection.find_one({"_id": session_id})
@@ -267,11 +245,6 @@ def get_transcripts_by_language(session_id, language):
             "warning": "Language not available in first transcript"
         }), 200
 
-    # language_texts = [
-    #     t.get("translations", {}).get(language, {}).get("text", "")
-    #     for t in transcripts
-    #     if language in t.get("translations", {}) and t["translations"][language].get("text")
-    # ]
     language_texts = []
     for t in transcripts:
         trans = t.get("translations", {}).get(language, {})
@@ -295,31 +268,30 @@ def get_transcripts_by_language(session_id, language):
 #유저별로 어떤 session 있는지 최신순으로 확인하는 용도
 @app.route("/transapi/get_sessions/<member_id>", methods=["GET"])
 def get_sessions(member_id):
-    start_time = time.time()  #요청 시작 시간
+    start_time = time.time()#요청 시작 시간
     #해당 사용자의 모든 세션을 최신순으로 가져오기
     sessions = sessions_collection.find(
-        {"member_id": member_id},#, "ended_at": None},
+        {"member_id": member_id},
         {"_id": 1, "created_at": 1}
-    ).sort("created_at", -1)#최신순
+    ).sort("created_at", -1) #최신순
 
-    #데이터 변환 (JSON 직렬화 가능하도록)
+    #데이터 변환(JSON 직렬화 가능하도록!)
     session_list = [{"session_id": s["_id"], "created_at": s["created_at"]} for s in sessions]
 
     if not session_list:
         return jsonify({"error": "No sessions found for this user"}), 404
-    response_time = time.time() - start_time  #응답 시간 측정
+    response_time = time.time() - start_time #응답 시간 측정
     db["logs"].insert_one({
         "event": "get_sessions",
-        "member_id": member_id, #"user_id": user_id,
+        "member_id": member_id,
         "timestamp": datetime.now(),
         "response_time": response_time,
-        "session_count": len(session_list)  #유저의 세션 개수도 기록
+        "session_count": len(session_list)#유저의 세션 개수도 기록
     })
     return jsonify({"member_id": member_id, "sessions": session_list})
 
 #세션 기록 조회 및 요약 API
 import json
-
 @app.route("/transapi/session_summary/<session_id>", methods=["GET"])
 def get_session_summary(session_id):
     start_time = time.time()  #요청 시작 시간
@@ -334,7 +306,7 @@ def get_session_summary(session_id):
     summary_text = summarize_text(full_transcript)
 
     try:
-        summary = json.loads(summary_text)  #문자열이 아닌 JSON 객체로 변환
+        summary = json.loads(summary_text)  #JSON 객체로 변환
     except json.JSONDecodeError:
         return jsonify({"error": "Failed to parse summary"}), 500  #JSON 파싱 실패 시 예외 처리
 
@@ -346,9 +318,8 @@ def get_session_summary(session_id):
         "response_time": response_time
     })
 
-    return jsonify(summary)  #JSON 객체 그대로 반환
+    return jsonify(summary)  #JSON 객체 반환
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5002, debug=True, threaded=True)
-    #app.run()

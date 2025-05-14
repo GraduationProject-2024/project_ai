@@ -8,9 +8,7 @@ API_URL = "https://business.juso.go.kr/addrlink/addrEngApi.do"
 CONFIRM_KEY = config['API_KEYS']['en_juso_api_key']  #발급받은 승인키 입력
 
 def get_english_address(korean_address):
-    """
-    한국어 주소를 입력받아 영문 주소를 반환하는 함수
-    """
+    #한국어 주소 -> 영문 주소소
     params = {
         'confmKey': CONFIRM_KEY,
         'currentPage': 1,

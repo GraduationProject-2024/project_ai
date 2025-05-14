@@ -1,34 +1,34 @@
 def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hospital=False, tertiary_hospital=False):
     from elasticsearch import Elasticsearch
     import configparser
-    config = configparser.ConfigParser()
+    config=configparser.ConfigParser()
     config.read('keys.config')
     #Elasticsearch 클라이언트 설정
-    es = Elasticsearch(
+    es=Elasticsearch(
         hosts=[config['ES_INFO']['host']],
         basic_auth=(config['ES_INFO']['username'], config['ES_INFO']['password']),
         verify_certs=False
     )
 
     #병원 유형 필터 구성
-    must_clcdnm = []
+    must_clcdnm=[]
     if secondary_hospital:
         must_clcdnm.extend(["병원", "종합병원"])
     if tertiary_hospital:
         must_clcdnm.append("상급종합")
 
     #Elasticsearch 쿼리 구성
-    must_queries = []
+    must_queries=[]
     #특수한 department 케이스 처리
     if department == "치의과":
-        dental_departments = [
+        dental_departments=[
             "치과", "구강악안면외과", "치과보철과", "치과교정과", "소아치과",
             "치주과", "치과보존과", "구강내과", "영상치의학과", "구강병리과",
             "예방치과", "통합치의학과"
         ]
         must_queries.append({"terms": {"dgsbjt": dental_departments}})
     elif department == "한방과":
-        oriental_departments = [
+        oriental_departments=[
             "한방내과", "한방부인과", "한방소아과", "한방안·이비인후·피부과",
             "한방신경정신과", "침구과", "한방재활의학과", "사상체질과", "한방응급"
         ]
@@ -38,7 +38,7 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
         must_queries.append({"match_phrase": {"dgsbjt": department}})
 
     #메인 쿼리
-    query = {
+    query={
         "_source": True,  #_source 필드 포함
         "query": {
             "bool": {
@@ -67,7 +67,7 @@ def query_elasticsearch_hosp(user_lat, user_lon, department=None, secondary_hosp
         query["query"]["bool"]["must"].append({"terms": {"clcdnm": must_clcdnm}})
     
     #Elasticsearch 검색 실행
-    response = es.search(
+    response=es.search(
         index="hospital_records_v3",
         body=query
     )
@@ -78,11 +78,11 @@ def filtering_hosp(results):
     """
     Elasticsearch 결과 필터링
     """
-    filtered_results = []
+    filtered_results=[]
     for hit in results['hits']['hits']:
-        source = hit['_source']
+        source=hit['_source']
 
-        es_distance_in_km = hit.get("fields", {}).get("es_distance_in_km", [None])[0] #script_fields 값 읽기
+        es_distance_in_km=hit.get("fields", {}).get("es_distance_in_km", [None])[0] #script_fields 값 읽기
         filtered_results.append({
             "id": source.get("id"),
             "name": source.get("yadmnm"),

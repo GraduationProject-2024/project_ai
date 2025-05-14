@@ -1,16 +1,15 @@
 import openai
 import configparser
 
-config = configparser.ConfigParser()
+config=configparser.ConfigParser()
 config.read('keys.config')
-openai.api_key = config['API_KEYS']['chatgpt_api_key']
+openai.api_key=config['API_KEYS']['chatgpt_api_key']
 
 def translate_text(text, target_language="en"):
-    """
-    사용자가 입력한 텍스트를 target_language로 번역
-    욕설이나 공격적인 표현은 정제하고, 번역이 이미 되어 있다면 그대로 유지
-    """
-    language_map = {
+    #입력 텍스트를 target_language로 번역
+    #욕설, 공격적인 표현을 정제
+
+    language_map={
         "ko": "Korean",
         "en": "English",
         "vi": "Vietnamese",
@@ -18,9 +17,9 @@ def translate_text(text, target_language="en"):
         "zh_tw": "Chinese(Traditional)"
     }
 
-    target_lang_full = language_map.get(target_language.lower(), "English")
+    target_lang_full=language_map.get(target_language.lower(), "English")
 
-    prompt = (
+    prompt=(
         f"You are a professional medical translator. "
         f"Translate the given short text to {target_lang_full} if it is not already in that language. "
         f"Do NOT explain what language the input is in. "
@@ -31,7 +30,7 @@ def translate_text(text, target_language="en"):
     )
 
     try:
-        response = openai.chat.completions.create(
+        response=openai.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": prompt},
