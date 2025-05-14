@@ -1,4 +1,4 @@
-DEPARTMENT_TRANSLATIONS = {
+DEPARTMENT_TRANSLATIONS={
     "가정의학과": {
         "KO": "가정의학과",
         "EN": "Family Medicine",
@@ -148,7 +148,7 @@ DEPARTMENT_TRANSLATIONS = {
     }
 }
 def get_department_translation(dept_ko: str, language: str) -> dict:
-    translations = DEPARTMENT_TRANSLATIONS.get(dept_ko)
+    translations=DEPARTMENT_TRANSLATIONS.get(dept_ko)
     if not translations:
         return {"KO": dept_ko}
     if language == "KO":

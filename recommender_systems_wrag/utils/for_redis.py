@@ -2,10 +2,7 @@ import redis
 import configparser
 
 def get_redis_client():
-    """
-    Initializes and returns a Redis client instance.
-    """
-    config = configparser.ConfigParser()
+    config=configparser.ConfigParser()
     config.read('keys.config')
 
     return redis.StrictRedis(

@@ -5,12 +5,8 @@ config = configparser.ConfigParser()
 config.read('keys.config')
 openai.api_key = config['API_KEYS']['chatgpt_api_key']
 
-
-
 def generate_title_and_type(content):
-    """
-    신고 내용을 기반으로 적절한 제목(한글 & 영어)과 emergency_type을 생성
-    """
+    #신고내용(content) 기반으로 제목(한+영)과 응급유형 생성
     prompt = f"""
     Analyze the following emergency report and generate:
     1. A concise and descriptive title in Korean.
@@ -38,7 +34,7 @@ def generate_title_and_type(content):
         )
         result = response.choices[0].message.content.strip()
 
-        #✅ JSON 변환 (예외 처리)
+        #JSON 변환
         import json
         try:
             data = json.loads(result)
@@ -59,11 +55,8 @@ def generate_title_and_type(content):
 
 import json
 def summarize_content(content):
-    """
-    신고 내용을 영어와 한국어로 번역 & 요약 (총 800 bytes 이내)
-    - 모든 언어를 감지하여 영어와 한국어로 변환
-    - 욕설 및 불쾌한 표현을 필터링하여 정제
-    """
+    #content를 영어+한국어로 번역 및 요약(800bytes 제한 고려)
+    #욕설 및 불쾌한 표현을 정제
     prompt = f"""
     Analyze the following report and generate a refined summary in both Korean and English.
     - Ensure that any vulgar, insulting, or offensive language is removed while preserving the original meaning.

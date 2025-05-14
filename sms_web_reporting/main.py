@@ -27,9 +27,7 @@ def generate_password_api():
     password = generate_password(used_passwords)
     return jsonify({"password": password})
 
-
-#웹으로 신고
-#postman에서 form-data 형태로 POST
+#웹으로 신고(form-data 형태로 POST)
 @app.route("/reportapi/fill_form", methods=["POST"])
 def fill_form():
     print("===== 프론트에서 받은 요청 =====", flush=True)
@@ -47,7 +45,7 @@ def fill_form():
     parts.append(phone_number[7:])
 
 
-    #password:6~16 digits.
+    #password:6~16 digits
     password = request.form.get("119_gen_pw", "rSYNshcgPjqd")
     location = clean_form_value(request.form.get("incident_location"))
     print('location:', location, flush=True)
@@ -70,7 +68,6 @@ def fill_form():
         content = transcribed_text
     else:
         content = clean_form_value(request.form.get("content", None))
-        #content = request.form.get("content", "").strip()
 
     #content가 없거나 비어 있을 경우 GPT 호출 생략
     if content is None or content.strip().lower() in ("", "null", "none", 'null') or content == 'null':
@@ -86,9 +83,6 @@ def fill_form():
         content_ko, content_en = summarize_content(content)
         processed_content = f'{content_en}({content_ko})'
         default_title_ko, default_title_en, default_emergency_type = generate_title_and_type(processed_content)
-        
-    print("[요약된 content_ko]:", content_ko)
-    print("[요약된 content_en]:", content_en)
 
 
     #기본값 제목 글자수 제한
@@ -98,11 +92,8 @@ def fill_form():
         default_title = default_title_en
     if len(default_title) > 100:
         default_title = default_title[:100]
-    print("[생성된 title]:", default_title_ko, default_title_en)
-    print("default_title:", default_title)
-    
-    raw_emergency_type = clean_form_value(request.form.get("emergency_type", "Emergency"))
 
+    raw_emergency_type = clean_form_value(request.form.get("emergency_type", "Emergency"))
     if (
         raw_emergency_type is None or
         raw_emergency_type == "null" or
@@ -115,7 +106,7 @@ def fill_form():
     title = clean_form_value(request.form.get("title")) or default_title
 
 
-    #이미지 업로드 처리:3개까지 가능 (optional)
+    #이미지 업로드 처리:3개까지 가능(optional)
     image_urls = []
     for file_key in ["file_1", "file_2", "file_3"]:
         if file_key in request.files:
@@ -123,7 +114,7 @@ def fill_form():
             s3_url = upload_image_to_s3(image_file)
             image_urls.append(s3_url)
 
-    #한국어 주소 -> select 옵션 매핑
+    #한국어 주소 기준으로로 웹 페이지의 select 옵션 매핑
     sido_mapping = {
         "서울특별시": "11",
         "부산광역시": "26",
@@ -145,7 +136,6 @@ def fill_form():
     }
 
     driver = setup_driver()
-    
     try:
         #119 페이지 열기
         driver.get("https://www.119.go.kr/Center119/registEn.do")
@@ -186,7 +176,6 @@ def fill_form():
             address_input = driver.find_element(By.XPATH, '//*[@id="juso"]')
             address_input.clear()
             address_input.send_keys(eng_location)
-        
 
         #신고 내용 본문
         wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="contents"]')))
@@ -225,4 +214,3 @@ def fill_form():
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5001, debug=True, threaded=True)
-    #app.run()

@@ -13,7 +13,7 @@ DB_CONFIG = {
     "cursorclass": pymysql.cursors.DictCursor  #결과를 딕셔너리 형태로 반환
 }
 
-#언어 매핑 (0~4 값 → 언어명)
+#언어 매핑(0~4 : 언어명)
 LANGUAGE_MAPPING = {
     1: "Chinese",
     2: "Vietnamese",
@@ -38,7 +38,7 @@ def get_main_language(member_id):
             result = cursor.fetchone()
             print(result)
             if result and "language" in result:
-                return LANGUAGE_MAPPING.get(result["language"], "Unknown")  #매핑되지 않으면 Unknown 반환
+                return LANGUAGE_MAPPING.get(result["language"], "Unknown")#매핑되지 않으면 Unknown 반환
     except Exception as e:
         print(f"데이터베이스 조회 오류: {e}")
         return "Unknown"
